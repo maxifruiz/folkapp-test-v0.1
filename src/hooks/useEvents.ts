@@ -1,157 +1,136 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Event, EventType } from '../types';
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
+
+interface Event {
+  id: string;
+  title: string;
+  description: string;
+  type: string;
+  province: string;
+  city: string;
+  address: string;
+  date: string;
+  is_free: boolean;
+  price_anticipada: number | null;
+  price_general: number | null;
+  multimedia: any[];
+  organizer_id: string;
+  created_at: string;
+  profiles?: {
+    full_name: string;
+    avatar: string;
+  };
+  reactions?: {
+    likes: string[];
+    attending: string[];
+  };
+}
+
+interface Filters {
+  selectedType: string;
+  selectedProvince: string;
+  selectedCity: string;
+}
 
 export function useEvents() {
-  // Start with empty events array
   const [events, setEvents] = useState<Event[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
-  const [selectedType, setSelectedType] = useState<EventType | 'all'>('all');
-  const [selectedProvince, setSelectedProvince] = useState<string>('');
-  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const [filters, setFilters] = useState<Filters>({
+    selectedType: '',
+    selectedProvince: '',
+    selectedCity: '',
+  });
 
-  // Load events from localStorage on initialization
-  useEffect(() => {
-    const storedEvents = localStorage.getItem('folki_events');
-    if (storedEvents) {
-      try {
-        const parsedEvents = JSON.parse(storedEvents).map((event: any) => ({
+  const fetchEvents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select(`*, profiles:organizer_id(full_name, avatar)`) // alias para datos de organizador
+        .order('date', { ascending: true });
+
+      if (error) throw error;
+      if (data) {
+        const enrichedEvents = data.map((event: any) => ({
           ...event,
-          date: new Date(event.date),
-          createdAt: new Date(event.createdAt)
+          price: {
+            anticipada: event.price_anticipada,
+            general: event.price_general,
+          },
+          organizer: event.profiles,
         }));
-        setEvents(parsedEvents);
-      } catch (error) {
-        console.error('Failed to parse stored events:', error);
+        setAllEvents(enrichedEvents);
+        applyFilters(enrichedEvents);
       }
+    } catch (error) {
+      console.error('Error al cargar eventos:', error);
     }
-  }, []);
+  };
 
-  // Save events to localStorage whenever events change
-  useEffect(() => {
-    localStorage.setItem('folki_events', JSON.stringify(events));
-  }, [events]);
-
-  // Filter events based on criteria
-  useEffect(() => {
-    let filtered = events;
-
-    if (selectedType !== 'all') {
-      filtered = filtered.filter(event => event.type === selectedType);
+  const applyFilters = (eventsList: Event[]) => {
+    let filtered = [...eventsList];
+    if (filters.selectedType) {
+      filtered = filtered.filter(e => e.type === filters.selectedType);
     }
-
-    if (selectedProvince) {
-      filtered = filtered.filter(event => event.location.province === selectedProvince);
+    if (filters.selectedProvince) {
+      filtered = filtered.filter(e => e.province === filters.selectedProvince);
     }
-
-    if (selectedCity) {
-      filtered = filtered.filter(event => event.location.city === selectedCity);
+    if (filters.selectedCity) {
+      filtered = filtered.filter(e => e.city.toLowerCase().includes(filters.selectedCity.toLowerCase()));
     }
+    setEvents(filtered);
+  };
 
-    // Sort by date (nearest first)
-    filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const setSelectedType = (type: string) => {
+    setFilters(prev => ({ ...prev, selectedType: type }));
+  };
+  const setSelectedProvince = (province: string) => {
+    setFilters(prev => ({ ...prev, selectedProvince: province }));
+  };
+  const setSelectedCity = (city: string) => {
+    setFilters(prev => ({ ...prev, selectedCity: city }));
+  };
 
-    setFilteredEvents(filtered);
-  }, [events, selectedType, selectedProvince, selectedCity]);
+  const clearFilters = () => {
+    setFilters({ selectedType: '', selectedProvince: '', selectedCity: '' });
+  };
 
-  const addEvent = useCallback((eventData: any, currentUser: any) => {
-    // Check for duplicate events (same title, location, and date)
-    const isDuplicate = events.some(event => 
-      event.title.toLowerCase() === eventData.title.toLowerCase() &&
-      event.location.province === eventData.province &&
-      event.location.city === eventData.city &&
-      event.date.toDateString() === eventData.date.toDateString()
-    );
-
-    if (isDuplicate) {
-      throw new Error('Ya existe un evento con el mismo título, ubicación y fecha');
-    }
-
-    const newEvent: Event = {
-      id: Date.now().toString(),
-      title: eventData.title,
-      description: eventData.description,
-      type: eventData.type,
-      location: {
-        province: eventData.province,
-        city: eventData.city,
-        address: eventData.address,
-        coordinates: { lat: 0, lng: 0 } // Would be geocoded in real app
-      },
-      date: eventData.date,
-      price: eventData.price,
-      multimedia: eventData.files.map((file: File, index: number) => ({
-        id: `${Date.now()}-${index}`,
-        type: file.type.startsWith('image/') ? 'image' : 'video',
-        url: URL.createObjectURL(file) // In real app, would upload to cloud storage
-      })),
-      organizer: currentUser,
-      reactions: {
-        likes: [],
-        attending: []
-      },
-      createdAt: new Date()
+  const addEvent = async (eventData: any, user: any) => {
+    const eventToInsert = {
+      ...eventData,
+      organizer_id: user.id,
     };
+    const { data, error } = await supabase.from('events').insert([eventToInsert]);
+    if (error) throw error;
+    await fetchEvents();
+    return data;
+  };
 
-    setEvents(prev => [newEvent, ...prev]);
-    return newEvent;
-  }, [events]);
+  const toggleLike = (eventId: string, userId: string) => {
+    console.log(`toggleLike: evento ${eventId} usuario ${userId}`);
+  };
 
-  const toggleLike = useCallback((eventId: string, userId: string) => {
-    setEvents(prev => prev.map(event => {
-      if (event.id === eventId) {
-        const likes = event.reactions.likes.includes(userId)
-          ? event.reactions.likes.filter(id => id !== userId)
-          : [...event.reactions.likes, userId];
-        
-        return {
-          ...event,
-          reactions: {
-            ...event.reactions,
-            likes
-          }
-        };
-      }
-      return event;
-    }));
+  const toggleAttending = (eventId: string, userId: string) => {
+    console.log(`toggleAttending: evento ${eventId} usuario ${userId}`);
+  };
+
+  const deleteEvent = async (eventId: string) => {
+    const { error } = await supabase.from('events').delete().eq('id', eventId);
+    if (error) throw error;
+    await fetchEvents();
+  };
+
+  useEffect(() => {
+    fetchEvents();
   }, []);
 
-  const toggleAttending = useCallback((eventId: string, userId: string) => {
-    setEvents(prev => prev.map(event => {
-      if (event.id === eventId) {
-        const attending = event.reactions.attending.includes(userId)
-          ? event.reactions.attending.filter(id => id !== userId)
-          : [...event.reactions.attending, userId];
-        
-        return {
-          ...event,
-          reactions: {
-            ...event.reactions,
-            attending
-          }
-        };
-      }
-      return event;
-    }));
-  }, []);
-
-  const deleteEvent = useCallback((eventId: string) => {
-    setEvents(prev => prev.filter(event => event.id !== eventId));
-  }, []);
-
-  const clearFilters = useCallback(() => {
-    setSelectedType('all');
-    setSelectedProvince('');
-    setSelectedCity('');
-  }, []);
+  useEffect(() => {
+    applyFilters(allEvents);
+  }, [filters, allEvents]);
 
   return {
-    events: filteredEvents,
-    allEvents: events,
-    filters: {
-      selectedType,
-      selectedProvince,
-      selectedCity
-    },
+    events,
+    allEvents,
+    filters,
     addEvent,
     toggleLike,
     toggleAttending,
@@ -159,6 +138,6 @@ export function useEvents() {
     setSelectedType,
     setSelectedProvince,
     setSelectedCity,
-    clearFilters
+    clearFilters,
   };
 }
