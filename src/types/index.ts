@@ -44,11 +44,10 @@ export type EventType =
   | 'peña'
   | 'certamen'
   | 'festival'
-  | 'concierto'
-  | 'milonga'
+  | 'recital'
+  | 'clase'
   | 'taller'
-  | 'encuentro'
-  | 'otro';
+  | 'encuentro';
 
 export interface Province {
   id: string;

@@ -125,9 +125,8 @@ export const eventTypeLabels = {
   peña: 'Peña',
   certamen: 'Certamen',
   festival: 'Festival',
-  concierto: 'Concierto',
-  milonga: 'Milonga',
+  recital: 'Recital',
+  clase: 'Clase',
   taller: 'Taller',
-  encuentro: 'Encuentro',
-  otro: 'Otro'
+  encuentro: 'Encuentro'
 };

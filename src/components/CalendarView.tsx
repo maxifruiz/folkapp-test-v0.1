@@ -141,8 +141,8 @@ export function CalendarView({ events, onLike, onAttend, currentUserId }: Calend
                           event.type === 'peña' ? 'bg-red-100 text-red-800' :
                           event.type === 'festival' ? 'bg-orange-100 text-orange-800' :
                           event.type === 'certamen' ? 'bg-purple-100 text-purple-800' :
-                          event.type === 'concierto' ? 'bg-blue-100 text-blue-800' :
-                          event.type === 'milonga' ? 'bg-pink-100 text-pink-800' :
+                          event.type === 'recital' ? 'bg-blue-100 text-blue-800' :
+                          event.type === 'clase' ? 'bg-pink-100 text-pink-800' :
                           event.type === 'taller' ? 'bg-green-100 text-green-800' :
                           event.type === 'encuentro' ? 'bg-yellow-100 text-yellow-800' :
                           'bg-gray-100 text-gray-800'

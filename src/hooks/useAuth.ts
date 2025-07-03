@@ -153,6 +153,9 @@ export const useAuth = () => {
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: 'https://folkapp-test-v01.vercel.app/',
+      },
     });
 
     if (signUpError || !signUpData.user) {

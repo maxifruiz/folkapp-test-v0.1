@@ -1,235 +1,353 @@
-import React, { useState } from 'react';
-import { Heart, Calendar as CalendarIcon, MapPin, Clock, DollarSign, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Event } from '../types';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Heart,
+  Calendar as CalendarIcon,
+  DollarSign,
+  X,
+} from 'lucide-react';
 import { ReactionModal } from './ReactionModal';
+import { motion } from 'framer-motion';
+import { useInView } from 'react-intersection-observer';
+
+// --- INTERFACES ---
+interface User {
+  id: string;
+  full_name: string;
+  avatar: string;
+}
+
+interface MultimediaItem {
+  id: string;
+  type?: string;
+  url: string;
+}
+
+interface Event {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  type?: string;
+  location?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  price_anticipada?: number;
+  price_general?: number;
+  multimedia?: MultimediaItem[];
+  organizer?: {
+    id?: string;
+    full_name?: string;
+    avatar?: string;
+  } | null;
+  reactions: {
+    likes: (User | null)[];
+    attending: (User | null)[];
+  };
+}
 
 interface EventCardProps {
   event: Event;
-  onLike: (eventId: string) => void;
-  onAttend: (eventId: string) => void;
-  currentUserId?: string;
+  currentUserId: string;
+  onToggleLike: (eventId: string, userId: string) => void;
+  onToggleAttending: (eventId: string, userId: string) => void;
+  index?: number; // <--- nuevo para delay animación
 }
 
-export function EventCard({ event, onLike, onAttend, currentUserId }: EventCardProps) {
+interface EventListProps {
+  events: Event[];
+  currentUserId: string;
+  onToggleLike: (eventId: string, userId: string) => void;
+  onToggleAttending: (eventId: string, userId: string) => void;
+}
+
+// --- COMPONENTE EVENTCARD ---
+export function EventCard({
+  event,
+  currentUserId,
+  onToggleLike,
+  onToggleAttending,
+  index = 0, // default 0
+}: EventCardProps) {
   const [showLikesModal, setShowLikesModal] = useState(false);
   const [showAttendingModal, setShowAttendingModal] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+  const [showDetail, setShowDetail] = useState(false);
+  const [likeAnimation, setLikeAnimation] = useState(false);
+  const [attendAnimation, setAttendAnimation] = useState(false);
 
-  const isLiked = currentUserId ? event.reactions?.likes?.includes(currentUserId) ?? false : false;
-  const isAttending = currentUserId ? event.reactions?.attending?.includes(currentUserId) ?? false : false;
+  const likes = event.reactions.likes?.filter(Boolean) ?? [];
+  const attending = event.reactions.attending?.filter(Boolean) ?? [];
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('es-AR', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(new Date(date));
+  const userLiked = likes.some((u) => u.id === currentUserId);
+  const userAttending = attending.some((u) => u.id === currentUserId);
+
+  const imageUrl =
+    event.multimedia && event.multimedia.length > 0
+      ? event.multimedia[0].url
+      : '';
+
+  const organizerName = event.organizer?.full_name || 'Organizador desconocido';
+  const organizerAvatar =
+    event.organizer?.avatar && event.organizer.avatar !== ''
+      ? event.organizer.avatar
+      : 'https://via.placeholder.com/40?text=👤';
+
+  const truncateTitle = (title: string, maxLength: number) => {
+    if (title.length <= maxLength) return title;
+    return title.slice(0, maxLength) + '...';
   };
 
-  const formatPriceDetailed = (price: any) => {
-    if (price === 'free') return 'Gratis';
-    if (price && typeof price === 'object') {
-      return (
-        <>
-          <p>Valor anticipada: <strong>${price?.anticipada ?? 'N/A'}</strong></p>
-          <p>Valor general: <strong>${price?.general ?? 'N/A'}</strong></p>
-        </>
-      );
+  const isFreeEvent =
+    (!event.price_anticipada || event.price_anticipada === 0) &&
+    (!event.price_general || event.price_general === 0);
+
+  const eventTypeStyle = {
+    peña: 'bg-red-100 text-red-800',
+    certamen: 'bg-purple-100 text-purple-800',
+    festival: 'bg-orange-100 text-orange-800',
+    recital: 'bg-blue-100 text-blue-800',
+    clase: 'bg-green-100 text-green-800',
+    encuentro: 'bg-yellow-100 text-yellow-800',
+  }[event.type || ''] || 'bg-gray-100 text-gray-800';
+
+  const triggerLike = () => {
+    if (!userLiked) {
+      setLikeAnimation(true);
+      setTimeout(() => setLikeAnimation(false), 2000);
     }
-    if (typeof price === 'number') {
-      return <p><strong>${price}</strong></p>;
+    onToggleLike(event.id, currentUserId);
+  };
+
+  const triggerAttend = () => {
+    if (!userAttending) {
+      setAttendAnimation(true);
+      setTimeout(() => setAttendAnimation(false), 2000);
     }
-    return <p>Sin precio</p>;
+    onToggleAttending(event.id, currentUserId);
   };
 
-  const getEventTypeColor = (type: string) => {
-    const colors = {
-      peña: 'bg-red-100 text-red-800 border-red-200',
-      festival: 'bg-orange-100 text-orange-800 border-orange-200',
-      certamen: 'bg-purple-100 text-purple-800 border-purple-200',
-      concierto: 'bg-blue-100 text-blue-800 border-blue-200',
-      milonga: 'bg-pink-100 text-pink-800 border-pink-200',
-      taller: 'bg-green-100 text-green-800 border-green-200',
-      encuentro: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      otro: 'bg-gray-100 text-gray-800 border-gray-200'
-    };
-    return colors[type as keyof typeof colors] || colors.otro;
-  };
-
-  const goToNextMedia = () => {
-    setCurrentMediaIndex((prevIndex) => (prevIndex + 1) % event.multimedia.length);
-  };
-
-  const goToPrevMedia = () => {
-    setCurrentMediaIndex((prevIndex) =>
-      prevIndex === 0 ? event.multimedia.length - 1 : prevIndex - 1
-    );
-  };
+  const [ref, inView] = useInView({
+    triggerOnce: true,
+    threshold: 0.2,
+  });
 
   return (
     <>
-      <div
-        className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-transform duration-300 overflow-hidden border border-neutral-200 transform hover:-translate-y-1 cursor-pointer"
-        onClick={() => setIsExpanded(true)}
+      <motion.div
+        ref={ref}
+        initial={{ opacity: 0, y: 20 }}
+        animate={inView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 1, ease: 'easeOut', delay: index * 0.3 }} // delay incremental por index
+        className="bg-white rounded-xl shadow-md overflow-hidden cursor-pointer transform transition-all duration-300 hover:scale-[1.02] hover:shadow-lg relative"
+        onClick={() => setShowDetail(true)}
       >
-        <div className="relative h-48 overflow-hidden rounded-t-xl">
-          <img
-            src={event.multimedia?.[0]?.url}
-            alt={event.title}
-            className="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-          />
-          <div className="absolute top-4 left-4">
-            <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getEventTypeColor(event.type)}`}>
-              {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
-            </span>
+        {event.type && (
+          <div
+            className={`absolute top-0 left-0 px-3 py-1 text-xs font-bold rounded-br-xl ${eventTypeStyle} animate-flamear`}
+          >
+            {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
           </div>
-        </div>
+        )}
 
-        <div className="p-6">
-          <h3 className="text-xl font-bold text-neutral-900 leading-tight mb-2">
-            {event.title}
-          </h3>
+        {imageUrl && (
+          <img src={imageUrl} alt={event.title} className="w-full h-48 object-cover" />
+        )}
 
-          <p className="text-neutral-600 text-sm mb-4 line-clamp-2">
-            {event.description}
-          </p>
+        <div className="p-4 space-y-0.5 pb-2 bg-white">
+          <h2 className="text-lg font-semibold text-gray-800">
+            {truncateTitle(event.title, 30)}
+          </h2>
 
-          <div className="space-y-2 mb-5">
-            <div className="flex items-center text-sm text-neutral-600">
-              <Clock className="h-5 w-5 mr-2 text-red-600" />
-              <span className="font-medium">{formatDate(event.date)}</span>
-            </div>
-
-            <div className="flex items-center text-sm text-neutral-600">
-              <MapPin className="h-5 w-5 mr-2 text-red-600" />
-              <span>{event.city}, {event.province}</span>
-            </div>
-
-            <div className="flex items-center text-sm text-neutral-600">
-              <DollarSign className="h-5 w-5 mr-2 text-red-600" />
-              <span className="font-semibold text-red-700">
-                {formatPriceDetailed(event.price)}
-              </span>
-            </div>
+          <div className="text-xs text-gray-600">
+            🗓️ <strong>Fecha:</strong>{' '}
+            {new Date(event.date).toLocaleString('es-AR', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+            })}
           </div>
 
-          <div className="flex items-center mb-5 pb-5 border-b border-neutral-100">
+          {(event.province || event.city) && (
+            <div className="text-xs text-gray-600">
+              🗺️ <strong>Ubicación:</strong>{' '}
+              {[event.province, event.city].filter(Boolean).join(' - ')}
+            </div>
+          )}
+
+          <div className="flex items-center mt-1 space-x-2">
             <img
-              src={event.organizer?.avatar}
-              alt={event.organizer?.full_name}
-              className="w-9 h-9 rounded-full mr-3"
+              src={organizerAvatar}
+              alt={organizerName}
+              className="w-8 h-8 rounded-full object-cover"
             />
-            <div>
-              <p className="text-xs text-neutral-500">Evento creado por</p>
-              <p className="text-sm font-medium text-neutral-800">{event.organizer?.full_name ?? 'Organizador desconocido'}</p>
+            <div className="text-xs text-gray-700 leading-tight">
+              Evento creado por <span className="font-semibold">{organizerName}</span>
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex space-x-5">
-              <button
-                onClick={(e) => { e.stopPropagation(); onLike(event.id); }}
-                className={`flex items-center space-x-2 px-5 py-2 rounded-lg transition-all duration-300 text-sm font-medium ${
-                  isLiked
-                    ? 'bg-red-100 text-red-700 border-2 border-red-200'
-                    : 'bg-neutral-100 text-neutral-600 hover:bg-red-50 hover:text-red-600 border-2 border-transparent'
-                }`}
-              >
-                <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
-                <span>{event.reactions?.likes?.length ?? 0}</span>
-              </button>
-
-              <button
-                onClick={(e) => { e.stopPropagation(); onAttend(event.id); }}
-                className={`flex items-center space-x-2 px-5 py-2 rounded-lg transition-all duration-300 text-sm font-medium ${
-                  isAttending
-                    ? 'bg-green-100 text-green-700 border-2 border-green-200'
-                    : 'bg-neutral-100 text-neutral-600 hover:bg-green-50 hover:text-green-600 border-2 border-transparent'
-                }`}
-              >
-                <CalendarIcon className={`h-5 w-5 ${isAttending ? 'fill-current' : ''}`} />
-                <span>{event.reactions?.attending?.length ?? 0}</span>
-              </button>
+          <div className="flex items-center justify-center space-x-4 mt-2">
+            <div
+              className={`flex items-center space-x-1 ${
+                userLiked ? 'text-red-600' : 'text-gray-600'
+              }`}
+            >
+              <Heart className={`w-5 h-5 ${userLiked ? 'fill-current' : ''}`} />
+              <span className="text-sm">{likes.length}</span>
             </div>
-
-            <div className="flex space-x-3 text-xs">
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowLikesModal(true); }}
-                className="text-neutral-500 hover:text-red-600"
-              >
-                Ver likes
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); setShowAttendingModal(true); }}
-                className="text-neutral-500 hover:text-green-600"
-              >
-                Ver asistentes
-              </button>
+            <div
+              className={`flex items-center space-x-1 ${
+                userAttending ? 'text-green-600' : 'text-gray-600'
+              }`}
+            >
+              <CalendarIcon className={`w-5 h-5 ${userAttending ? 'fill-current' : ''}`} />
+              <span className="text-sm">{attending.length}</span>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {isExpanded && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4 transition-all animate-fadeInSlow">
-          <div className="bg-white max-w-3xl w-full rounded-xl p-6 relative animate-slideUpSlow">
+      {/* Modal Detalle */}
+      {showDetail && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-70 flex items-center justify-center animate-fade-in">
+          <div className="bg-white max-w-2xl w-full mx-4 rounded-xl overflow-hidden shadow-xl relative animate-slide-up">
             <button
-              className="absolute top-3 right-3 text-neutral-500 hover:text-red-600"
-              onClick={() => setIsExpanded(false)}
+              onClick={() => setShowDetail(false)}
+              className="absolute top-3 right-3 text-gray-700 hover:text-black"
             >
-              <XCircle className="w-6 h-6" />
+              <X className="w-6 h-6" />
             </button>
-            <div className="mb-4 relative">
-              {event.multimedia?.length > 1 && (
+
+            {imageUrl && (
+              <img
+                src={imageUrl}
+                alt={event.title}
+                className="w-full h-auto max-h-[320px] object-cover"
+              />
+            )}
+
+            <div className="p-6 space-y-4 relative">
+              {likeAnimation && (
                 <>
-                  <button
-                    className="absolute top-1/2 left-0 transform -translate-y-1/2 bg-white rounded-full shadow p-1"
-                    onClick={goToPrevMedia}
+                  <img
+                    src="/like.gif"
+                    alt="like animation"
+                    className="fixed top-1/2 left-1/2 w-40 h-40 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[999]"
+                    style={{ animation: 'none' }} // quitamos animación css para controlar timing JS
+                  />
+                  <div
+                    className="fixed top-[60%] left-1/2 transform -translate-x-1/2 text-4xl font-bold text-red-600 pointer-events-none z-[999] select-none"
+                    style={{ userSelect: 'none' }}
                   >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <button
-                    className="absolute top-1/2 right-0 transform -translate-y-1/2 bg-white rounded-full shadow p-1"
-                    onClick={goToNextMedia}
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
+                    ¡Like!
+                  </div>
                 </>
               )}
-              {event.multimedia?.[currentMediaIndex]?.type === 'video' ? (
-                <video src={event.multimedia[currentMediaIndex].url} controls className="w-full rounded-lg" />
-              ) : (
-                <img src={event.multimedia?.[currentMediaIndex]?.url} alt={event.title} className="w-full rounded-lg" />
+              {attendAnimation && (
+                <>
+                  <img
+                    src="/asistire.gif"
+                    alt="asistiré animation"
+                    className="fixed top-1/2 left-1/2 w-40 h-40 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[999]"
+                    style={{ animation: 'none' }}
+                  />
+                  <div
+                    className="fixed top-[60%] left-1/2 transform -translate-x-1/2 text-4xl font-bold text-green-600 pointer-events-none z-[999] select-none"
+                    style={{ userSelect: 'none' }}
+                  >
+                    ¡Asistiré!
+                  </div>
+                </>
               )}
-            </div>
-            <h2 className="text-2xl font-bold mb-2 text-neutral-800">{event.title}</h2>
-            <p className="text-neutral-600 mb-4">{event.description}</p>
-            <div className="space-y-2">
-              <div className="flex items-center text-sm text-neutral-600">
-                <Clock className="h-5 w-5 mr-2 text-red-600" />
-                <span>{formatDate(event.date)}</span>
+
+              <h2 className="text-2xl font-bold text-gray-900">{event.title}</h2>
+              <p className="text-gray-800 whitespace-pre-line">{event.description}</p>
+              <div className="text-gray-600 text-sm">
+                🗓️ <strong>Fecha:</strong>{' '}
+                {new Date(event.date).toLocaleString('es-AR', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })}
               </div>
-              <div className="flex items-center text-sm text-neutral-600">
-                <MapPin className="h-5 w-5 mr-2 text-red-600" />
-                <span>{event.city}, {event.province} - {event.address}</span>
+              {(event.province || event.city) && (
+                <div className="text-gray-600 text-sm">
+                  🗺️ <strong>Ubicación:</strong>{' '}
+                  {[event.province, event.city].filter(Boolean).join(' - ')}
+                </div>
+              )}
+              {event.address && (
+                <div className="text-gray-600 text-sm">
+                  📍 <strong>Dirección:</strong> {event.address}
+                </div>
+              )}
+              <div className="text-red-600 text-sm space-y-1">
+                {isFreeEvent ? (
+                  <div>Evento gratuito</div>
+                ) : (
+                  <>
+                    {event.price_anticipada !== undefined && event.price_anticipada !== 0 && (
+                      <div>
+                        <DollarSign className="w-4 h-4 inline mr-1" />
+                        Valor anticipada: ${event.price_anticipada}
+                      </div>
+                    )}
+                    {event.price_general !== undefined && event.price_general !== 0 && (
+                      <div>
+                        <DollarSign className="w-4 h-4 inline mr-1" />
+                        Valor general: ${event.price_general}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-              <div className="flex items-start text-sm text-neutral-600">
-                <DollarSign className="h-5 w-5 mr-2 text-red-600 mt-1" />
-                <div>{formatPriceDetailed(event.price)}</div>
-              </div>
-              <div className="flex items-center mt-4">
+              <div className="flex items-center">
                 <img
-                  src={event.organizer?.avatar}
-                  alt={event.organizer?.full_name}
-                  className="w-10 h-10 rounded-full mr-3"
+                  src={organizerAvatar}
+                  alt={organizerName}
+                  className="w-10 h-10 rounded-full mr-3 object-cover"
                 />
-                <div>
-                  <p className="text-xs text-neutral-500">Evento creado por</p>
-                  <p className="text-sm font-medium text-neutral-800">{event.organizer?.full_name ?? 'Organizador desconocido'}</p>
+                <span className="text-sm text-gray-700">
+                  Evento creado por <strong>{organizerName}</strong>
+                </span>
+              </div>
+              <div className="flex items-center justify-center space-x-6 mt-6">
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={triggerLike}
+                    className={`flex items-center space-x-1 focus:outline-none ${
+                      userLiked ? 'text-red-600' : 'text-gray-400'
+                    }`}
+                  >
+                    <Heart className={`w-5 h-5 ${userLiked ? 'fill-current' : ''}`} />
+                  </button>
+                  <button
+                    onClick={() => setShowLikesModal(true)}
+                    className="text-sm text-blue-600 hover:underline focus:outline-none"
+                  >
+                    Ver likes
+                  </button>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={triggerAttend}
+                    className={`flex items-center space-x-1 focus:outline-none ${
+                      userAttending ? 'text-green-600' : 'text-gray-400'
+                    }`}
+                  >
+                    <CalendarIcon className={`w-5 h-5 ${userAttending ? 'fill-current' : ''}`} />
+                  </button>
+                  <button
+                    onClick={() => setShowAttendingModal(true)}
+                    className="text-sm text-blue-600 hover:underline focus:outline-none"
+                  >
+                    Ver asistencia
+                  </button>
                 </div>
               </div>
             </div>
@@ -240,18 +358,73 @@ export function EventCard({ event, onLike, onAttend, currentUserId }: EventCardP
       <ReactionModal
         isOpen={showLikesModal}
         onClose={() => setShowLikesModal(false)}
-        title="Les gusta este evento"
-        userIds={event.reactions?.likes ?? []}
+        title={`Me gusta - ${event.title}`}
+        users={likes}
         type="likes"
       />
-
       <ReactionModal
         isOpen={showAttendingModal}
         onClose={() => setShowAttendingModal(false)}
-        title="Asistirán al evento"
-        userIds={event.reactions?.attending ?? []}
+        title={`Asistirán - ${event.title}`}
+        users={attending}
         type="attending"
       />
     </>
+  );
+}
+
+// --- COMPONENTE EVENTLIST ---
+// Muestra la lista de eventos con lazy load para ir mostrando más tarjetas
+export function EventList({
+  events,
+  currentUserId,
+  onToggleLike,
+  onToggleAttending,
+}: EventListProps) {
+  const [visibleCount, setVisibleCount] = useState(5);
+
+  const loadMore = useCallback(() => {
+    setVisibleCount((count) => Math.min(count + 5, events.length));
+  }, [events.length]);
+
+  // Listener scroll para cargar más eventos cuando el usuario llega cerca del final
+  useEffect(() => {
+    function onScroll() {
+      if (
+        window.innerHeight + window.scrollY >=
+        document.body.offsetHeight - 300
+      ) {
+        loadMore();
+      }
+    }
+
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [loadMore]);
+
+  // Siempre que cambia la lista de eventos (p.ej. filtrado), resetear visibleCount
+  useEffect(() => {
+    setVisibleCount(5);
+  }, [events]);
+
+  return (
+    <div className="space-y-6">
+      {events.slice(0, visibleCount).map((event, idx) => (
+        <EventCard
+          key={event.id}
+          event={event}
+          currentUserId={currentUserId}
+          onToggleLike={onToggleLike}
+          onToggleAttending={onToggleAttending}
+          index={idx} // <--- le paso index para delay animación
+        />
+      ))}
+
+      {visibleCount < events.length && (
+        <div className="text-center text-gray-500 py-4">
+          Desliza hacia abajo para cargar más eventos...
+        </div>
+      )}
+    </div>
   );
 }

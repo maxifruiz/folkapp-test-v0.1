@@ -1,26 +1,21 @@
 import React from 'react';
 import { X, Heart, Calendar } from 'lucide-react';
 
+interface User {
+  id: string;
+  full_name: string;
+  avatar: string;
+}
+
 interface ReactionModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  userIds: string[];
+  users: User[];
   type: 'likes' | 'attending';
 }
 
-export function ReactionModal({ isOpen, onClose, title, userIds, type }: ReactionModalProps) {
-  // Mock users data - in a real app, you'd fetch this from your API based on userIds
-  const mockUsers = [
-    { id: '1', name: 'Usuario Ejemplo 1', avatar: 'https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop' },
-    { id: '2', name: 'Usuario Ejemplo 2', avatar: 'https://images.pexels.com/photos/91227/pexels-photo-91227.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop' },
-    { id: '3', name: 'Usuario Ejemplo 3', avatar: 'https://images.pexels.com/photos/415829/pexels-photo-415829.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop' },
-    { id: '4', name: 'Usuario Ejemplo 4', avatar: 'https://images.pexels.com/photos/1222271/pexels-photo-1222271.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop' },
-    { id: '5', name: 'Usuario Ejemplo 5', avatar: 'https://images.pexels.com/photos/1130626/pexels-photo-1130626.jpeg?auto=compress&cs=tinysrgb&w=150&h=150&fit=crop' }
-  ];
-
-  const users = mockUsers.filter(user => userIds.includes(user.id));
-
+export function ReactionModal({ isOpen, onClose, title, users, type }: ReactionModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -49,20 +44,25 @@ export function ReactionModal({ isOpen, onClose, title, userIds, type }: Reactio
           {users.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-neutral-500">
-                {type === 'likes' ? 'Nadie ha marcado "me gusta" aún' : 'Nadie marcó que asistirá aún'}
+                {type === 'likes'
+                  ? 'Nadie ha marcado "me gusta" aún'
+                  : 'Nadie marcó que asistirá aún'}
               </p>
             </div>
           ) : (
             <div className="space-y-3 max-h-64 overflow-y-auto">
               {users.map((user) => (
-                <div key={user.id} className="flex items-center space-x-3 hover:bg-neutral-50 p-2 rounded-lg transition-colors duration-200">
+                <div
+                  key={user.id}
+                  className="flex items-center space-x-3 hover:bg-neutral-50 p-2 rounded-lg transition-colors duration-200"
+                >
                   <img
                     src={user.avatar}
-                    alt={user.name}
+                    alt={user.full_name}
                     className="w-10 h-10 rounded-full object-cover"
                   />
                   <div className="flex-1">
-                    <p className="font-medium text-neutral-800">{user.name}</p>
+                    <p className="font-medium text-neutral-800">{user.full_name}</p>
                   </div>
                   {type === 'likes' ? (
                     <Heart className="h-4 w-4 text-red-500 fill-current" />

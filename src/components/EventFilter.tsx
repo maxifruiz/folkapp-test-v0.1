@@ -7,25 +7,20 @@ import { provinces, eventTypeLabels } from '../data/mockData';
 interface EventFilterProps {
   selectedType: EventType | 'all';
   selectedProvince: string;
-  selectedCity: string;
   onTypeChange: (type: EventType | 'all') => void;
   onProvinceChange: (province: string) => void;
-  onCityChange: (city: string) => void;
   onClearFilters: () => void;
 }
 
 export function EventFilter({
   selectedType,
   selectedProvince,
-  selectedCity,
   onTypeChange,
   onProvinceChange,
-  onCityChange,
   onClearFilters,
 }: EventFilterProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const selectedProvinceData = provinces.find(p => p.name === selectedProvince);
-  const hasActiveFilters = selectedType !== 'all' || selectedProvince !== '' || selectedCity !== '';
+  const hasActiveFilters = selectedType !== 'all' || selectedProvince !== '';
 
   // Cargar estado guardado
   useEffect(() => {
@@ -71,7 +66,7 @@ export function EventFilter({
             transition={{ duration: 0.4, ease: 'easeInOut' }}
             className="overflow-hidden mt-5 space-y-5"
           >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-semibold text-neutral-700 mb-2">Tipo de evento</label>
                 <select
@@ -92,33 +87,13 @@ export function EventFilter({
                 <label className="block text-sm font-semibold text-neutral-700 mb-2">Provincia</label>
                 <select
                   value={selectedProvince}
-                  onChange={(e) => {
-                    onProvinceChange(e.target.value);
-                    onCityChange('');
-                  }}
+                  onChange={(e) => onProvinceChange(e.target.value)}
                   className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-folkiRed focus:border-folkiRed text-neutral-800"
                 >
                   <option value="">Todas las provincias</option>
                   {provinces.map((province) => (
                     <option key={province.id} value={province.name}>
                       {province.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-neutral-700 mb-2">Ciudad</label>
-                <select
-                  value={selectedCity}
-                  onChange={(e) => onCityChange(e.target.value)}
-                  disabled={!selectedProvince}
-                  className="w-full px-4 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-folkiRed focus:border-folkiRed disabled:bg-neutral-100 disabled:cursor-not-allowed text-neutral-800"
-                >
-                  <option value="">Todas las ciudades</option>
-                  {selectedProvinceData?.cities.map((city) => (
-                    <option key={city} value={city}>
-                      {city}
                     </option>
                   ))}
                 </select>
@@ -144,17 +119,6 @@ export function EventFilter({
                     <button
                       onClick={() => onProvinceChange('')}
                       className="ml-2 text-blue-600 hover:text-blue-800"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </span>
-                )}
-                {selectedCity && (
-                  <span className="inline-flex items-center px-4 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-300">
-                    {selectedCity}
-                    <button
-                      onClick={() => onCityChange('')}
-                      className="ml-2 text-green-600 hover:text-green-800"
                     >
                       <X className="h-4 w-4" />
                     </button>

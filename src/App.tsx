@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { EventCard } from './components/EventCard';
 import { EventFilter } from './components/EventFilter';
@@ -10,8 +10,6 @@ import { useAuth } from './hooks/useAuth';
 import { useEvents } from './hooks/useEvents';
 import { Music2, Sparkles } from 'lucide-react';
 import { UserProfile } from './components/UserProfile';
-
-type Page = 'cartelera' | 'calendario' | 'publicar' | 'perfil' | 'admin';
 
 function App() {
   const { user, loading, login, register, logout } = useAuth();
@@ -29,7 +27,29 @@ function App() {
     clearFilters,
   } = useEvents();
 
-  const [currentPage, setCurrentPage] = useState<Page>('cartelera');
+  const [currentPage, setCurrentPage] = useState<
+    'cartelera' | 'calendario' | 'publicar' | 'perfil' | 'admin'
+  >('cartelera');
+
+  // Estado para control de cantidad visible en cartelera (lazy load)
+  const [visibleCount, setVisibleCount] = useState(8);
+
+  // efecto para detectar scroll y cargar más eventos
+  useEffect(() => {
+    if (currentPage !== 'cartelera') return;
+
+    function onScroll() {
+      if (
+        window.innerHeight + window.scrollY >=
+        document.body.offsetHeight - 300
+      ) {
+        setVisibleCount((prev) => Math.min(prev + 4, events.length));
+      }
+    }
+
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [currentPage, events.length]);
 
   if (loading) {
     return (
@@ -45,20 +65,21 @@ function App() {
 
   const handleEventSubmit = async (eventData: any) => {
     try {
-      await addEvent(eventData, user);
+      await addEvent(eventData); // ✅ Ya contiene organizer_id y no debe sobrescribirse
       setCurrentPage('cartelera');
+      setVisibleCount(8); // resetear visibleCount cuando vuelve a cartelera
     } catch (error) {
       console.error('Error al publicar el evento:', error);
       alert('Hubo un problema al publicar el evento. Intentá nuevamente.');
     }
   };
 
-  const handleLike = (eventId: string) => {
-    toggleLike(eventId, user.id);
+  const handleLike = async (eventId: string) => {
+    await toggleLike(eventId, user.id);
   };
 
-  const handleAttend = (eventId: string) => {
-    toggleAttending(eventId, user.id);
+  const handleAttend = async (eventId: string) => {
+    await toggleAttending(eventId, user.id);
   };
 
   const handleDeleteEvent = (eventId: string) => {
@@ -67,7 +88,15 @@ function App() {
 
   const renderContent = () => {
     switch (currentPage) {
-      case 'cartelera':
+      case 'cartelera': {
+        // Ordeno eventos cronológicamente (de más cercano a más lejano)
+        const sortedEvents = [...events].sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+
+        // Tomo solo los visibles para lazy load
+        const visibleEvents = sortedEvents.slice(0, visibleCount);
+
         return (
           <div>
             <div className="text-center mb-8">
@@ -75,21 +104,25 @@ function App() {
                 <Music2 className="h-8 w-8 text-red-600" />
                 <Sparkles className="h-6 w-6 text-amber-500" />
               </div>
-              <h1 className="text-3xl font-bold text-neutral-800 mb-2">Cartelera Folklórica</h1>
-              <p className="text-neutral-600">Descubrí los mejores eventos de folklore en todo el país</p>
+              <h1 className="text-3xl font-bold text-neutral-800 mb-2">
+                Cartelera Folklórica
+              </h1>
+              <p className="text-neutral-600">
+                Descubrí los mejores eventos de folklore en todo el país
+              </p>
             </div>
 
             <EventFilter
-              selectedType={filters.selectedType}
-              selectedProvince={filters.selectedProvince}
-              selectedCity={filters.selectedCity}
+              selectedType={filters?.selectedType || ''}
+              selectedProvince={filters?.selectedProvince || ''}
+              selectedCity={filters?.selectedCity || ''}
               onTypeChange={setSelectedType}
               onProvinceChange={setSelectedProvince}
               onCityChange={setSelectedCity}
               onClearFilters={clearFilters}
             />
 
-            {events.length === 0 ? (
+            {visibleEvents.length === 0 ? (
               <div className="text-center py-12">
                 <Music2 className="h-16 w-16 text-neutral-300 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-neutral-600 mb-2">
@@ -110,26 +143,31 @@ function App() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {events.map((event) => (
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 px-2">
+                {visibleEvents.map((event, index) => (
                   <EventCard
                     key={event.id}
                     event={event}
-                    onLike={handleLike}
-                    onAttend={handleAttend}
+                    onToggleLike={handleLike}
+                    onToggleAttending={handleAttend}
                     currentUserId={user.id}
+                    className="animate-fade-up-delay"
+                    style={{ animationDelay: `${index * 100}ms` }}
                   />
                 ))}
               </div>
             )}
           </div>
         );
+      }
 
       case 'calendario':
         return (
           <div>
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-neutral-800 mb-2">Calendario de Eventos</h1>
+              <h1 className="text-3xl font-bold text-neutral-800 mb-2">
+                Calendario de Eventos
+              </h1>
               <p className="text-neutral-600">Planificá tu agenda folklórica</p>
             </div>
             <CalendarView events={allEvents} />
@@ -140,8 +178,12 @@ function App() {
         return (
           <div>
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-neutral-800 mb-2">Compartí tu Evento</h1>
-              <p className="text-neutral-600">Ayudá a que más gente descubra el folklore</p>
+              <h1 className="text-3xl font-bold text-neutral-800 mb-2">
+                Compartí tu Evento
+              </h1>
+              <p className="text-neutral-600">
+                Ayudá a que más gente descubra el folklore
+              </p>
             </div>
             <EventForm onSubmit={handleEventSubmit} currentUser={user} />
           </div>
@@ -151,12 +193,18 @@ function App() {
         if (!user?.role || user.role !== 'admin') {
           return (
             <div className="text-center py-12">
-              <h3 className="text-xl font-semibold text-neutral-600 mb-2">Acceso Denegado</h3>
-              <p className="text-neutral-500">No tenés permisos para acceder a esta sección</p>
+              <h3 className="text-xl font-semibold text-neutral-600 mb-2">
+                Acceso Denegado
+              </h3>
+              <p className="text-neutral-500">
+                No tenés permisos para acceder a esta sección
+              </p>
             </div>
           );
         }
-        return <AdminDashboard events={allEvents} onDeleteEvent={handleDeleteEvent} />;
+        return (
+          <AdminDashboard events={allEvents} onDeleteEvent={handleDeleteEvent} />
+        );
 
       case 'perfil':
         return <UserProfile />;
