@@ -17,110 +17,91 @@ export const useAuth = () => {
 
   useEffect(() => {
     const getUserSession = async () => {
-      try {
-        console.log('🚀 getUserSession iniciado');
-        const { data: sessionData } = await supabase.auth.getSession();
-        console.log('📦 sessionData:', sessionData);
-        const sessionUser = sessionData?.session?.user;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const sessionUser = sessionData?.session?.user;
 
-        if (!sessionUser) {
-          console.log('⛔ No hay sessionUser, usuario no logueado');
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-
-        console.log('🔍 Buscando perfil para user id:', sessionUser.id);
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', sessionUser.id)
-          .single();
-
-        if (error || !profile) {
-          console.log('❌ Perfil no encontrado o error:', error);
-          const fallbackEmail = sessionUser.email!;
-          const fallbackRole = fallbackEmail === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
-
-          setUser({
-            id: sessionUser.id,
-            email: fallbackEmail,
-            createdAt: sessionUser.created_at!,
-            fullName: '',
-            birthdate: '',
-            instagram: '',
-            role: fallbackRole,
-          });
-          setLoading(false);
-          return;
-        }
-
-        const role = profile.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
-
-        console.log('✅ Perfil encontrado:', profile);
-
-        setUser({
-          id: sessionUser.id,
-          email: sessionUser.email!,
-          createdAt: sessionUser.created_at!,
-          fullName: profile.full_name,
-          birthdate: profile.birthdate,
-          instagram: profile.instagram,
-          role,
-        });
-        setLoading(false);
-      } catch (error) {
-        console.error('❌ Error en getUserSession:', error);
+      if (!sessionUser) {
         setUser(null);
         setLoading(false);
+        return;
       }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', sessionUser.id)
+        .single();
+
+      const role = sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
+
+      setUser({
+        id: sessionUser.id,
+        email: sessionUser.email!,
+        createdAt: sessionUser.created_at!,
+        fullName: profile?.full_name || '',
+        birthdate: profile?.birthdate || '',
+        instagram: profile?.instagram || '',
+        role,
+      });
+
+      setLoading(false);
     };
 
     getUserSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('🔄 onAuthStateChange event:', _event, session);
-
-      if (session?.user) {
-        console.log('🔍 Buscando perfil para onAuthStateChange user id:', session.user.id);
-
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data: profile, error }) => {
-            if (error) {
-              console.error('❌ Error buscando perfil en onAuthStateChange:', error);
-            } else {
-              console.log('✅ Perfil encontrado en onAuthStateChange:', profile);
-            }
-
-            const email = session.user.email!;
-            const role = email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
-
-            setUser({
-              id: session.user.id,
-              email,
-              createdAt: session.user.created_at!,
-              fullName: profile?.full_name || '',
-              birthdate: profile?.birthdate || '',
-              instagram: profile?.instagram || '',
-              role,
-            });
-          })
-          .catch((err) => {
-            console.error('❌ Error inesperado al buscar perfil en onAuthStateChange:', err);
-            setUser(null);
-          })
-          .finally(() => {
-            setLoading(false);
-          });
-      } else {
-        console.log('🔒 Sesión cerrada o no hay usuario');
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const sessionUser = session?.user;
+      if (!sessionUser) {
         setUser(null);
         setLoading(false);
+        return;
       }
+
+      // Buscar perfil
+      let { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', sessionUser.id)
+        .single();
+
+      // Si no existe perfil, intentamos crearlo
+      if (error || !profile) {
+        const saved = localStorage.getItem('pendingProfile');
+        if (saved) {
+          const { fullName, birthdate, instagram, email } = JSON.parse(saved);
+          const { error: insertError } = await supabase.from('profiles').insert({
+            id: sessionUser.id,
+            full_name: fullName,
+            birthdate,
+            instagram,
+            email,
+          });
+
+          if (!insertError) {
+            localStorage.removeItem('pendingProfile');
+            profile = { full_name: fullName, birthdate, instagram, email };
+            console.log('✅ Perfil creado en onAuthStateChange');
+          } else {
+            console.error('❌ Error insertando perfil:', insertError);
+          }
+        } else {
+          console.warn('⚠️ No hay pendingProfile en localStorage');
+        }
+      }
+
+      const role = sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
+
+      setUser({
+        id: sessionUser.id,
+        email: sessionUser.email!,
+        createdAt: sessionUser.created_at!,
+        fullName: profile?.full_name || '',
+        birthdate: profile?.birthdate || '',
+        instagram: profile?.instagram || '',
+        role,
+      });
+
+      setLoading(false);
     });
 
     return () => {
@@ -153,9 +134,6 @@ export const useAuth = () => {
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        emailRedirectTo: 'https://folkapp-test-v01.vercel.app/',
-      },
     });
 
     if (signUpError || !signUpData.user) {
