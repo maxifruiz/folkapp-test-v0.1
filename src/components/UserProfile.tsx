@@ -3,9 +3,9 @@ import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabaseClient';
 import { useEvents } from '../hooks/useEvents';
 import { EventCard } from '../components/EventCard';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, MapPin, Calendar, Heart, Users } from 'lucide-react';
 
-const ImageModal = ({ imageUrl, onClose }: { imageUrl: string; onClose: () => void }) => {
+const ImageModal = ({ imageUrl, onClose }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -13,7 +13,7 @@ const ImageModal = ({ imageUrl, onClose }: { imageUrl: string; onClose: () => vo
   }, []);
 
   useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
+    const handleEsc = (e) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleEsc);
@@ -41,7 +41,7 @@ const ImageModal = ({ imageUrl, onClose }: { imageUrl: string; onClose: () => vo
 export const UserProfile = () => {
   const { user, logout } = useAuth();
   const { allEvents, toggleLike, toggleAttendance } = useEvents();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showFullImage, setShowFullImage] = useState(false);
   const [eventsExpanded, setEventsExpanded] = useState(false);
@@ -52,12 +52,11 @@ export const UserProfile = () => {
 
   async function fetchAvatar() {
     if (!user) return;
-
     const { data, error } = await supabase
       .from('profiles')
       .select('avatar')
       .eq('id', user.id)
-      .maybeSingle(); // <-- cambio para evitar error 406
+      .single();
 
     if (error) {
       console.error(error);
@@ -67,7 +66,7 @@ export const UserProfile = () => {
     }
   }
 
-  async function uploadAvatar(event: React.ChangeEvent<HTMLInputElement>) {
+  async function uploadAvatar(event) {
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
@@ -76,13 +75,9 @@ export const UserProfile = () => {
     const filePath = `${user.id}/avatar.${fileExt}`;
 
     try {
-      // Primero borramos el avatar anterior (si existe)
       await supabase.storage.from('avatars').remove([filePath]);
-      // Subimos el nuevo avatar
       await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
-      // Obtenemos la url pública
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      // Actualizamos el perfil con la url pública
       await supabase.from('profiles').update({ avatar: data.publicUrl }).eq('id', user.id);
       setAvatarUrl(data.publicUrl);
     } catch (error) {
@@ -146,6 +141,7 @@ export const UserProfile = () => {
         </p>
       </div>
 
+      {/* Botón expandir / contraer eventos */}
       <button
         onClick={() => setEventsExpanded((v) => !v)}
         className="flex items-center justify-between w-full bg-red-600 hover:bg-red-700 transition text-white font-semibold rounded-lg px-4 py-3 mb-4 select-none"
@@ -156,6 +152,7 @@ export const UserProfile = () => {
         {eventsExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
       </button>
 
+      {/* Lista desplegable con visual de EventCard */}
       <div
         id="user-events-list"
         className={`transition-opacity duration-500 ease-in-out ${

@@ -27,7 +27,6 @@ export const Login = ({ onLogin, onRegister }: any) => {
     if (isRegistering) {
       const success = await onRegister({ email, password, fullName, birthdate, instagram });
       if (success) {
-        // Guardar datos temporales en localStorage para después insertar perfil
         localStorage.setItem(
           'pendingProfile',
           JSON.stringify({ fullName, birthdate, instagram, email })
@@ -43,6 +42,12 @@ export const Login = ({ onLogin, onRegister }: any) => {
         alert('Error al registrarse. Verificá los datos.');
       }
     } else {
+      if (!email.trim() || !password.trim()) {
+        alert('Completá email y contraseña antes de ingresar.');
+        setIsSubmitting(false);
+        return;
+      }
+
       const success = await onLogin(email, password);
       setIsSubmitting(false);
       if (!success) {
@@ -60,7 +65,7 @@ export const Login = ({ onLogin, onRegister }: any) => {
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-folkiCream to-white px-4 font-sans">
       <AnimatePresence mode="wait">
         <motion.div
-          key={showConfirmation ? 'confirmation' : isRegistering ? 'register' : 'login'}
+          // Elimino el key para que no se reinicien los inputs al cambiar estado interno
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -40 }}

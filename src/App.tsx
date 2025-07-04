@@ -12,7 +12,7 @@ import { Music2, Sparkles } from 'lucide-react';
 import { UserProfile } from './components/UserProfile';
 
 function App() {
-  const { user, loading, login, register, logout } = useAuth();
+  const { user, loading, initialized, login, register, logout } = useAuth();
   const {
     events,
     allEvents,
@@ -31,10 +31,8 @@ function App() {
     'cartelera' | 'calendario' | 'publicar' | 'perfil' | 'admin'
   >('cartelera');
 
-  // Estado para control de cantidad visible en cartelera (lazy load)
   const [visibleCount, setVisibleCount] = useState(8);
 
-  // efecto para detectar scroll y cargar más eventos
   useEffect(() => {
     if (currentPage !== 'cartelera') return;
 
@@ -51,6 +49,14 @@ function App() {
     return () => window.removeEventListener('scroll', onScroll);
   }, [currentPage, events.length]);
 
+  if (!initialized) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-gray-700 text-xl">
+        Iniciando...
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen text-gray-700 text-xl">
@@ -65,9 +71,9 @@ function App() {
 
   const handleEventSubmit = async (eventData: any) => {
     try {
-      await addEvent(eventData); // ✅ Ya contiene organizer_id y no debe sobrescribirse
+      await addEvent(eventData);
       setCurrentPage('cartelera');
-      setVisibleCount(8); // resetear visibleCount cuando vuelve a cartelera
+      setVisibleCount(8);
     } catch (error) {
       console.error('Error al publicar el evento:', error);
       alert('Hubo un problema al publicar el evento. Intentá nuevamente.');
@@ -89,12 +95,10 @@ function App() {
   const renderContent = () => {
     switch (currentPage) {
       case 'cartelera': {
-        // Ordeno eventos cronológicamente (de más cercano a más lejano)
         const sortedEvents = [...events].sort(
           (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
         );
 
-        // Tomo solo los visibles para lazy load
         const visibleEvents = sortedEvents.slice(0, visibleCount);
 
         return (
