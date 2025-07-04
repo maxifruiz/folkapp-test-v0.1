@@ -12,7 +12,7 @@ import { Music2, Sparkles } from 'lucide-react';
 import { UserProfile } from './components/UserProfile';
 
 function App() {
-  const { user, loading, initialized, login, register, logout } = useAuth();
+  const { user, loading, login, register, logout } = useAuth();
   const {
     events,
     allEvents,
@@ -48,14 +48,6 @@ function App() {
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
   }, [currentPage, events.length]);
-
-  if (!initialized) {
-    return (
-      <div className="flex items-center justify-center min-h-screen text-gray-700 text-xl">
-        Iniciando...
-      </div>
-    );
-  }
 
   if (loading) {
     return (

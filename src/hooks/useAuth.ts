@@ -15,9 +15,23 @@ interface User {
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [initialized, setInitialized] = useState(false); // Nuevo estado
 
-  const loadUserProfile = async (sessionUser: any) => {
+  const saveProfileToLocal = (profile: any) => {
+    localStorage.setItem('cachedProfile', JSON.stringify(profile));
+  };
+
+  const getProfileFromLocal = (userId: string) => {
+    const raw = localStorage.getItem('cachedProfile');
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed?.id === userId ? parsed : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const loadUserProfile = async (sessionUser: any, retry = false) => {
     console.log('loadUserProfile start', sessionUser);
     if (!sessionUser?.id || !sessionUser?.email) {
       console.warn('⚠️ Usuario inválido en loadUserProfile');
@@ -33,33 +47,27 @@ export const useAuth = () => {
         .single();
 
       if (error || !profile) {
-        console.log('No se encontró perfil, intentando crear uno desde localStorage');
-        const saved = localStorage.getItem('pendingProfile');
-        if (saved) {
-          const { fullName, birthdate, instagram, email } = JSON.parse(saved);
-          const { error: insertError } = await supabase.from('profiles').insert({
-            id: sessionUser.id,
-            full_name: fullName,
-            birthdate,
-            instagram,
-            email,
-            created_at: sessionUser.created_at,
-          });
-          if (!insertError) {
-            localStorage.removeItem('pendingProfile');
-            profile = { full_name: fullName, birthdate, instagram, email };
-            console.log('Perfil creado automáticamente');
-          } else {
-            console.error('Error insertando perfil:', insertError);
-          }
+        if (!retry) {
+          console.warn('Perfil no encontrado, reintentando en 500ms...');
+          setTimeout(() => loadUserProfile(sessionUser, true), 500);
+          return;
         } else {
-          console.log('No hay perfil ni pendingProfile');
+          const cached = getProfileFromLocal(sessionUser.id);
+          if (cached) {
+            console.log('✅ Usando perfil desde localStorage');
+            const role = sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
+            setUser({ ...cached, role });
+            return;
+          }
+          console.error('❌ Error al obtener perfil incluso tras reintento:', error);
+          setUser(null);
+          return;
         }
       }
 
       const role = sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
 
-      setUser({
+      const formattedUser = {
         id: sessionUser.id,
         email: sessionUser.email,
         createdAt: sessionUser.created_at,
@@ -68,10 +76,13 @@ export const useAuth = () => {
         instagram: profile?.instagram || '',
         avatar: profile?.avatar || '',
         role,
-      });
-      console.log('Usuario seteado en useAuth:', sessionUser.email);
+      };
+
+      saveProfileToLocal(formattedUser);
+      setUser(formattedUser);
+      console.log('✅ Usuario seteado en useAuth:', sessionUser.email);
     } catch (err) {
-      console.error('Error cargando perfil:', err);
+      console.error('❌ Error cargando perfil:', err);
       setUser(null);
     }
   };
@@ -95,7 +106,6 @@ export const useAuth = () => {
         setUser(null);
       } finally {
         setLoading(false);
-        setInitialized(true); // Setea que ya intentamos cargar
         console.log('useAuth init - loading false');
       }
     };
@@ -105,8 +115,7 @@ export const useAuth = () => {
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         console.log('Auth state change:', _event);
-        if (initialized) setLoading(true); // Solo si ya cargamos la primera vez
-
+        setLoading(true);
         try {
           if (session?.user) {
             await loadUserProfile(session.user);
@@ -126,7 +135,7 @@ export const useAuth = () => {
     return () => {
       listener?.subscription.unsubscribe();
     };
-  }, [initialized]);
+  }, []);
 
   const login = async (email: string, password: string) => {
     if (!email || !password) return false;
@@ -172,5 +181,5 @@ export const useAuth = () => {
     return true;
   };
 
-  return { user, loading, initialized, login, register, logout };
+  return { user, loading, login, register, logout };
 };
