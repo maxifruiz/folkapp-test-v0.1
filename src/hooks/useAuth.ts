@@ -17,7 +17,6 @@ export const useAuth = () => {
 
   // Función para crear perfil si no existe
   const createProfileIfNotExists = async (userId: string, email: string) => {
-    // Verificamos si ya existe
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('*')
@@ -75,10 +74,10 @@ export const useAuth = () => {
           return;
         }
 
-        // Intentamos crear perfil si no existe (por si usuario confirma mail y hace login)
+        // Crear perfil si no existe
         await createProfileIfNotExists(sessionUser.id, sessionUser.email!);
 
-        const { data: profile, error } = await supabase
+        const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', sessionUser.id)
@@ -109,9 +108,10 @@ export const useAuth = () => {
       if (session?.user) {
         const userSession = session.user;
 
+        // Crear perfil si no existe
         await createProfileIfNotExists(userSession.id, userSession.email!);
 
-        const { data: profile, error } = await supabase
+        const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', userSession.id)
