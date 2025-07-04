@@ -15,76 +15,92 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Función para crear perfil si no existe
-  const createProfileIfNotExists = async (userId: string, email: string) => {
-    // Verificamos si ya existe
-    const { data: profile, error } = await supabase
+  // Crear perfil si no existe (no bloquea render)
+  const ensureProfileExists = async (userId: string, email: string) => {
+    const { data: existingProfile } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id')
       .eq('id', userId)
       .single();
 
-    if (error || !profile) {
-      // Intentamos crear perfil con datos de localStorage (pendingProfile)
-      const pendingProfileRaw = localStorage.getItem('pendingProfile');
-      let fullName = '';
+    if (!existingProfile) {
+      const pendingRaw = localStorage.getItem('pendingProfile');
+      let fullName = email.split('@')[0];
       let birthdate = '';
       let instagram = '';
 
-      if (pendingProfileRaw) {
+      if (pendingRaw) {
         try {
-          const pendingProfile = JSON.parse(pendingProfileRaw);
-          fullName = pendingProfile.fullName || '';
-          birthdate = pendingProfile.birthdate || '';
-          instagram = pendingProfile.instagram || '';
-        } catch {
-          // No pasa nada si no se puede parsear
-        }
+          const pending = JSON.parse(pendingRaw);
+          fullName = pending.fullName || fullName;
+          birthdate = pending.birthdate || '';
+          instagram = pending.instagram || '';
+        } catch {}
       }
 
-      // Por si no hay nombre, usar parte del email
-      if (!fullName) fullName = email.split('@')[0];
-
-      const { error: insertError } = await supabase.from('profiles').insert({
+      await supabase.from('profiles').insert({
         id: userId,
         email,
         full_name: fullName,
         birthdate,
         instagram,
         created_at: new Date(),
-        avatar: https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)},
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}`,
       });
 
-      if (insertError) {
-        console.error('Error creando perfil:', insertError);
-      } else {
-        localStorage.removeItem('pendingProfile'); // Limpiamos storage
-      }
+      localStorage.removeItem('pendingProfile');
     }
   };
 
   useEffect(() => {
-    const getUserSession = async () => {
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const sessionUser = sessionData?.session?.user;
+    const fetchSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      const sessionUser = data.session?.user;
 
+      if (!sessionUser) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      await ensureProfileExists(sessionUser.id, sessionUser.email!);
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', sessionUser.id)
+        .single();
+
+      setUser({
+        id: sessionUser.id,
+        email: sessionUser.email!,
+        createdAt: sessionUser.created_at!,
+        fullName: profile?.full_name || '',
+        birthdate: profile?.birthdate || '',
+        instagram: profile?.instagram || '',
+        role: sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user',
+      });
+      setLoading(false);
+    };
+
+    fetchSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        const sessionUser = session?.user;
         if (!sessionUser) {
           setUser(null);
           setLoading(false);
           return;
         }
 
-        // Intentamos crear perfil si no existe (por si usuario confirma mail y hace login)
-        await createProfileIfNotExists(sessionUser.id, sessionUser.email!);
+        await ensureProfileExists(sessionUser.id, sessionUser.email!);
 
-        const { data: profile, error } = await supabase
+        const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', sessionUser.id)
           .single();
-
-        const role = sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
 
         setUser({
           id: sessionUser.id,
@@ -93,50 +109,14 @@ export const useAuth = () => {
           fullName: profile?.full_name || '',
           birthdate: profile?.birthdate || '',
           instagram: profile?.instagram || '',
-          role,
+          role: sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user',
         });
         setLoading(false);
-      } catch (error) {
-        console.error('Error en getUserSession:', error);
-        setUser(null);
-        setLoading(false);
       }
-    };
-
-    getUserSession();
-
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        const userSession = session.user;
-
-        await createProfileIfNotExists(userSession.id, userSession.email!);
-
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userSession.id)
-          .single();
-
-        const role = userSession.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
-
-        setUser({
-          id: userSession.id,
-          email: userSession.email!,
-          createdAt: userSession.created_at!,
-          fullName: profile?.full_name || '',
-          birthdate: profile?.birthdate || '',
-          instagram: profile?.instagram || '',
-          role,
-        });
-        setLoading(false);
-      } else {
-        setUser(null);
-        setLoading(false);
-      }
-    });
+    );
 
     return () => {
-      listener?.subscription.unsubscribe();
+      authListener?.subscription.unsubscribe();
     };
   }, []);
 
@@ -146,12 +126,9 @@ export const useAuth = () => {
       console.error('Error al iniciar sesión:', error.message);
       return false;
     }
-
-    // Crear perfil si no existe
     if (data.user) {
-      await createProfileIfNotExists(data.user.id, email);
+      await ensureProfileExists(data.user.id, email);
     }
-
     return true;
   };
 
@@ -168,13 +145,9 @@ export const useAuth = () => {
     birthdate: string;
     instagram: string;
   }) => {
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (signUpError || !signUpData.user) {
-      console.error('Error al registrarse:', signUpError?.message);
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error || !data.user) {
+      console.error('Error al registrarse:', error.message);
       return false;
     }
 
@@ -198,3 +171,4 @@ export const useAuth = () => {
 
   return { user, loading, login, register, logout };
 };
+
