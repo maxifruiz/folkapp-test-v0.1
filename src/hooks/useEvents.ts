@@ -1,4 +1,4 @@
-//  k src/hooks/useEvents.ts
+// src/hooks/useEvents.ts
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabaseClient';
 interface User {
   id: string;
   full_name: string;
-  avatar: string | null;
+  avatar: string;
 }
 
 interface Event {
@@ -24,7 +24,7 @@ interface Event {
   organizer?: {
     id?: string;
     full_name?: string;
-    avatar?: string | null;
+    avatar?: string;
   } | null;
   reactions: {
     likes: User[];
@@ -47,8 +47,7 @@ export function useEvents() {
     try {
       const { data, error } = await supabase
         .from('events')
-        .select(
-          `
+        .select(`
           *,
           organizer:profiles!fk_events_organizer(
             id,
@@ -67,42 +66,24 @@ export function useEvents() {
             full_name,
             avatar
           )
-        `,
-          { head: false }
-        );
+        `);
 
       if (error) throw error;
 
-      // Manejamos avatar faltante con url generada de ui-avatars
-      const formatAvatar = (user: any) => {
-        if (!user) return null;
-        if (user.avatar && user.avatar !== '') return user.avatar;
-        if (user.full_name)
-          return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=E53E3E&color=fff&size=128`;
-        return null;
-      };
-
       const formatted = data.map((ev: any) => ({
         ...ev,
-        organizer: ev.organizer
-          ? {
-              ...ev.organizer,
-              avatar: formatAvatar(ev.organizer),
-            }
-          : null,
+        organizer: ev.organizer || null,
         reactions: {
-          likes:
-            ev.likes?.map((l: any) => ({
-              id: l.user_id,
-              full_name: l.full_name,
-              avatar: formatAvatar(l),
-            })) || [],
-          attending:
-            ev.attendances?.map((a: any) => ({
-              id: a.user_id,
-              full_name: a.full_name,
-              avatar: formatAvatar(a),
-            })) || [],
+          likes: ev.likes?.map((l: any) => ({
+            id: l.user_id,
+            full_name: l.full_name,
+            avatar: l.avatar,
+          })) || [],
+          attending: ev.attendances?.map((a: any) => ({
+            id: a.user_id,
+            full_name: a.full_name,
+            avatar: a.avatar,
+          })) || [],
         },
       }));
 
@@ -119,13 +100,13 @@ export function useEvents() {
     let filtered = allEvents;
 
     if (selectedType && selectedType !== 'all') {
-      filtered = filtered.filter((ev) => ev.type === selectedType);
+      filtered = filtered.filter(ev => ev.type === selectedType);
     }
     if (selectedProvince) {
-      filtered = filtered.filter((ev) => ev.province === selectedProvince);
+      filtered = filtered.filter(ev => ev.province === selectedProvince);
     }
     if (selectedCity) {
-      filtered = filtered.filter((ev) => ev.city === selectedCity);
+      filtered = filtered.filter(ev => ev.city === selectedCity);
     }
 
     setEvents(filtered);
@@ -147,18 +128,10 @@ export function useEvents() {
 
       if (error) throw error;
 
-      const formatAvatar = (user: any) => {
-        if (!user) return null;
-        if (user.avatar && user.avatar !== '') return user.avatar;
-        if (user.full_name)
-          return `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=E53E3E&color=fff&size=128`;
-        return null;
-      };
-
       const formattedUsers = data.map((r: any) => ({
         id: r.user_id,
         full_name: r.full_name,
-        avatar: formatAvatar(r),
+        avatar: r.avatar,
       }));
 
       setAllEvents((prev) =>
