@@ -1,4 +1,4 @@
-// src/hooks/useEvents.ts
+//  k src/hooks/useEvents.ts
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
