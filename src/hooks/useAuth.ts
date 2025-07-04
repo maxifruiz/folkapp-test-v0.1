@@ -15,110 +15,121 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Función para crear perfil si no existe
+  const createProfileIfNotExists = async (userId: string, email: string) => {
+    // Verificamos si ya existe
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error || !profile) {
+      // Intentamos crear perfil con datos de localStorage (pendingProfile)
+      const pendingProfileRaw = localStorage.getItem('pendingProfile');
+      let fullName = '';
+      let birthdate = '';
+      let instagram = '';
+
+      if (pendingProfileRaw) {
+        try {
+          const pendingProfile = JSON.parse(pendingProfileRaw);
+          fullName = pendingProfile.fullName || '';
+          birthdate = pendingProfile.birthdate || '';
+          instagram = pendingProfile.instagram || '';
+        } catch {
+          // No pasa nada si no se puede parsear
+        }
+      }
+
+      // Por si no hay nombre, usar parte del email
+      if (!fullName) fullName = email.split('@')[0];
+
+      const { error: insertError } = await supabase.from('profiles').insert({
+        id: userId,
+        email,
+        full_name: fullName,
+        birthdate,
+        instagram,
+        created_at: new Date(),
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}`,
+      });
+
+      if (insertError) {
+        console.error('Error creando perfil:', insertError);
+      } else {
+        localStorage.removeItem('pendingProfile'); // Limpiamos storage
+      }
+    }
+  };
+
   useEffect(() => {
     const getUserSession = async () => {
       try {
-        console.log('🚀 getUserSession iniciado');
         const { data: sessionData } = await supabase.auth.getSession();
-        console.log('📦 sessionData:', sessionData);
         const sessionUser = sessionData?.session?.user;
 
         if (!sessionUser) {
-          console.log('⛔ No hay sessionUser, usuario no logueado');
           setUser(null);
           setLoading(false);
           return;
         }
 
-        console.log('🔍 Buscando perfil para user id:', sessionUser.id);
+        // Intentamos crear perfil si no existe (por si usuario confirma mail y hace login)
+        await createProfileIfNotExists(sessionUser.id, sessionUser.email!);
+
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', sessionUser.id)
           .single();
 
-        if (error || !profile) {
-          console.log('❌ Perfil no encontrado o error:', error);
-          const fallbackEmail = sessionUser.email!;
-          const fallbackRole = fallbackEmail === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
-
-          setUser({
-            id: sessionUser.id,
-            email: fallbackEmail,
-            createdAt: sessionUser.created_at!,
-            fullName: '',
-            birthdate: '',
-            instagram: '',
-            role: fallbackRole,
-          });
-          setLoading(false);
-          return;
-        }
-
-        const role = profile.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
-
-        console.log('✅ Perfil encontrado:', profile);
+        const role = sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
 
         setUser({
           id: sessionUser.id,
           email: sessionUser.email!,
           createdAt: sessionUser.created_at!,
-          fullName: profile.full_name,
-          birthdate: profile.birthdate,
-          instagram: profile.instagram,
+          fullName: profile?.full_name || '',
+          birthdate: profile?.birthdate || '',
+          instagram: profile?.instagram || '',
           role,
         });
         setLoading(false);
       } catch (error) {
-        console.error('❌ Error en getUserSession:', error);
+        console.error('Error en getUserSession:', error);
         setUser(null);
         setLoading(false);
       }
     };
 
-    // Inicializamos la sesión del usuario
     getUserSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('🔄 onAuthStateChange event:', _event, session);
-
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        console.log('🔍 Buscando perfil para onAuthStateChange user id:', session.user.id);
+        const userSession = session.user;
 
-        supabase
+        await createProfileIfNotExists(userSession.id, userSession.email!);
+
+        const { data: profile, error } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data: profile, error }) => {
-            if (error) {
-              console.error('❌ Error buscando perfil en onAuthStateChange:', error);
-            } else {
-              console.log('✅ Perfil encontrado en onAuthStateChange:', profile);
-            }
+          .eq('id', userSession.id)
+          .single();
 
-            const email = session.user.email!;
-            const role = email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
+        const role = userSession.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
 
-            setUser({
-              id: session.user.id,
-              email,
-              createdAt: session.user.created_at!,
-              fullName: profile?.full_name || '',
-              birthdate: profile?.birthdate || '',
-              instagram: profile?.instagram || '',
-              role,
-            });
-          })
-          .catch((err) => {
-            console.error('❌ Error inesperado al buscar perfil en onAuthStateChange:', err);
-            setUser(null);
-          })
-          .finally(() => {
-            setLoading(false);
-          });
+        setUser({
+          id: userSession.id,
+          email: userSession.email!,
+          createdAt: userSession.created_at!,
+          fullName: profile?.full_name || '',
+          birthdate: profile?.birthdate || '',
+          instagram: profile?.instagram || '',
+          role,
+        });
+        setLoading(false);
       } else {
-        console.log('🔒 Sesión cerrada o no hay usuario');
         setUser(null);
         setLoading(false);
       }
@@ -130,11 +141,17 @@ export const useAuth = () => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      console.error('❌ Error al iniciar sesión:', error.message);
+      console.error('Error al iniciar sesión:', error.message);
       return false;
     }
+
+    // Crear perfil si no existe
+    if (data.user) {
+      await createProfileIfNotExists(data.user.id, email);
+    }
+
     return true;
   };
 
@@ -157,7 +174,7 @@ export const useAuth = () => {
     });
 
     if (signUpError || !signUpData.user) {
-      console.error('❌ Error al registrarse:', signUpError?.message);
+      console.error('Error al registrarse:', signUpError?.message);
       return false;
     }
 
@@ -172,7 +189,7 @@ export const useAuth = () => {
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
-      console.error('❌ Error al cerrar sesión:', error.message);
+      console.error('Error al cerrar sesión:', error.message);
       return false;
     }
     setUser(null);
