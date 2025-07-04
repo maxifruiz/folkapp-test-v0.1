@@ -8,7 +8,6 @@ interface User {
   fullName?: string;
   birthdate?: string;
   instagram?: string;
-  avatar?: string;
   role?: string;
 }
 
@@ -16,121 +15,114 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const saveProfileToLocal = (profile: any) => {
-    localStorage.setItem('cachedProfile', JSON.stringify(profile));
-  };
-
-  const getProfileFromLocal = (userId: string) => {
-    const raw = localStorage.getItem('cachedProfile');
-    if (!raw) return null;
-    try {
-      const parsed = JSON.parse(raw);
-      return parsed?.id === userId ? parsed : null;
-    } catch {
-      return null;
-    }
-  };
-
-  const loadUserProfile = async (sessionUser: any, retry = false) => {
-    console.log('loadUserProfile start', sessionUser);
-    if (!sessionUser?.id || !sessionUser?.email) {
-      console.warn('⚠️ Usuario inválido en loadUserProfile');
-      setUser(null);
-      return;
-    }
-
-    try {
-      let { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', sessionUser.id)
-        .single();
-
-      if (error || !profile) {
-        if (!retry) {
-          console.warn('Perfil no encontrado, reintentando en 500ms...');
-          setTimeout(() => loadUserProfile(sessionUser, true), 500);
-          return;
-        } else {
-          const cached = getProfileFromLocal(sessionUser.id);
-          if (cached) {
-            console.log('✅ Usando perfil desde localStorage');
-            const role = sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
-            setUser({ ...cached, role });
-            return;
-          }
-          console.error('❌ Error al obtener perfil incluso tras reintento:', error);
-          setUser(null);
-          return;
-        }
-      }
-
-      const role = sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
-
-      const formattedUser = {
-        id: sessionUser.id,
-        email: sessionUser.email,
-        createdAt: sessionUser.created_at,
-        fullName: profile?.full_name || '',
-        birthdate: profile?.birthdate || '',
-        instagram: profile?.instagram || '',
-        avatar: profile?.avatar || '',
-        role,
-      };
-
-      saveProfileToLocal(formattedUser);
-      setUser(formattedUser);
-      console.log('✅ Usuario seteado en useAuth:', sessionUser.email);
-    } catch (err) {
-      console.error('❌ Error cargando perfil:', err);
-      setUser(null);
-    }
-  };
-
   useEffect(() => {
-    const init = async () => {
-      console.log('useAuth init - comenzando carga sesión');
-      setLoading(true);
+    const getUserSession = async () => {
       try {
+        console.log('🚀 getUserSession iniciado');
         const { data: sessionData } = await supabase.auth.getSession();
+        console.log('📦 sessionData:', sessionData);
         const sessionUser = sessionData?.session?.user;
 
-        if (sessionUser) {
-          await loadUserProfile(sessionUser);
-        } else {
-          console.log('No hay sesión activa');
+        if (!sessionUser) {
+          console.log('⛔ No hay sessionUser, usuario no logueado');
           setUser(null);
+          setLoading(false);
+          return;
         }
-      } catch (err) {
-        console.error('Error obteniendo sesión inicial:', err);
-        setUser(null);
-      } finally {
+
+        console.log('🔍 Buscando perfil para user id:', sessionUser.id);
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', sessionUser.id)
+          .single();
+
+        if (error || !profile) {
+          console.log('❌ Perfil no encontrado o error:', error);
+          const fallbackEmail = sessionUser.email!;
+          const fallbackRole = fallbackEmail === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
+
+          setUser({
+            id: sessionUser.id,
+            email: fallbackEmail,
+            createdAt: sessionUser.created_at!,
+            fullName: '',
+            birthdate: '',
+            instagram: '',
+            role: fallbackRole,
+          });
+          setLoading(false);
+          return;
+        }
+
+        const role = profile.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
+
+        console.log('✅ Perfil encontrado:', profile);
+
+        setUser({
+          id: sessionUser.id,
+          email: sessionUser.email!,
+          createdAt: sessionUser.created_at!,
+          fullName: profile.full_name,
+          birthdate: profile.birthdate,
+          instagram: profile.instagram,
+          role,
+        });
         setLoading(false);
-        console.log('useAuth init - loading false');
+      } catch (error) {
+        console.error('❌ Error en getUserSession:', error);
+        setUser(null);
+        setLoading(false);
       }
     };
 
-    init();
+    // Inicializamos la sesión del usuario
+    getUserSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        console.log('Auth state change:', _event);
-        setLoading(true);
-        try {
-          if (session?.user) {
-            await loadUserProfile(session.user);
-          } else {
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('🔄 onAuthStateChange event:', _event, session);
+
+      if (session?.user) {
+        console.log('🔍 Buscando perfil para onAuthStateChange user id:', session.user.id);
+
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data: profile, error }) => {
+            if (error) {
+              console.error('❌ Error buscando perfil en onAuthStateChange:', error);
+            } else {
+              console.log('✅ Perfil encontrado en onAuthStateChange:', profile);
+            }
+
+            const email = session.user.email!;
+            const role = email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user';
+
+            setUser({
+              id: session.user.id,
+              email,
+              createdAt: session.user.created_at!,
+              fullName: profile?.full_name || '',
+              birthdate: profile?.birthdate || '',
+              instagram: profile?.instagram || '',
+              role,
+            });
+          })
+          .catch((err) => {
+            console.error('❌ Error inesperado al buscar perfil en onAuthStateChange:', err);
             setUser(null);
-          }
-        } catch (err) {
-          console.error('Error en listener de auth:', err);
-          setUser(null);
-        } finally {
-          setLoading(false);
-          console.log('Listener - loading false');
-        }
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+      } else {
+        console.log('🔒 Sesión cerrada o no hay usuario');
+        setUser(null);
+        setLoading(false);
       }
-    );
+    });
 
     return () => {
       listener?.subscription.unsubscribe();
@@ -138,11 +130,11 @@ export const useAuth = () => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    if (!email || !password) return false;
-
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) return false;
-
+    if (error) {
+      console.error('❌ Error al iniciar sesión:', error.message);
+      return false;
+    }
     return true;
   };
 
@@ -164,7 +156,10 @@ export const useAuth = () => {
       password,
     });
 
-    if (signUpError || !signUpData.user) return false;
+    if (signUpError || !signUpData.user) {
+      console.error('❌ Error al registrarse:', signUpError?.message);
+      return false;
+    }
 
     localStorage.setItem(
       'pendingProfile',
@@ -176,7 +171,10 @@ export const useAuth = () => {
 
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) return false;
+    if (error) {
+      console.error('❌ Error al cerrar sesión:', error.message);
+      return false;
+    }
     setUser(null);
     return true;
   };

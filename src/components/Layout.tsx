@@ -67,21 +67,8 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                 </div>
               </div>
 
-              {user && (
-                <div className="flex items-center space-x-2">
-                  <img
-                    src={user.avatar}
-                    alt={user.name}
-                    className="w-8 h-8 rounded-full border-2 border-folkiAmber shadow"
-                  />
-                  <div className="hidden sm:block">
-                    <span className="text-white text-sm font-medium block">{user.name}</span>
-                    {user.role === 'admin' && (
-                      <span className="text-folkiAmber text-xs">Administrador</span>
-                    )}
-                  </div>
-                </div>
-              )}
+              {/* Círculo amarillo sin foto de usuario */}
+              <div className="w-8 h-8 rounded-full bg-yellow-400"></div>
             </div>
           </div>
         </header>
