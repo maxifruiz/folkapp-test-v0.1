@@ -27,11 +27,6 @@ export const Login = ({ onLogin, onRegister }: any) => {
     if (isRegistering) {
       const success = await onRegister({ email, password, fullName, birthdate, instagram });
       if (success) {
-        localStorage.setItem(
-          'pendingProfile',
-          JSON.stringify({ fullName, birthdate, instagram, email })
-        );
-
         resetForm();
         setTimeout(() => {
           setShowConfirmation(true);
@@ -65,7 +60,6 @@ export const Login = ({ onLogin, onRegister }: any) => {
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-folkiCream to-white px-4 font-sans">
       <AnimatePresence mode="wait">
         <motion.div
-          // Elimino el key para que no se reinicien los inputs al cambiar estado interno
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -40 }}
