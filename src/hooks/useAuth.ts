@@ -51,40 +51,40 @@ export const useAuth = () => {
     }
   };
 
+  const loadUserProfile = async (sessionUser: any) => {
+    await ensureProfileExists(sessionUser.id, sessionUser.email!);
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', sessionUser.id)
+      .single();
+
+    setUser({
+      id: sessionUser.id,
+      email: sessionUser.email!,
+      createdAt: sessionUser.created_at!,
+      fullName: profile?.full_name || '',
+      birthdate: profile?.birthdate || '',
+      instagram: profile?.instagram || '',
+      role: sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user',
+    });
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const loadUserProfile = async (sessionUser: any) => {
-      await ensureProfileExists(sessionUser.id, sessionUser.email!);
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', sessionUser.id)
-        .single();
-
-      setUser({
-        id: sessionUser.id,
-        email: sessionUser.email!,
-        createdAt: sessionUser.created_at!,
-        fullName: profile?.full_name || '',
-        birthdate: profile?.birthdate || '',
-        instagram: profile?.instagram || '',
-        role: sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user',
-      });
-      setLoading(false);
-    };
-
     const init = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const sessionUser = data?.session?.user;
-        if (sessionUser) {
-          await loadUserProfile(sessionUser);
-        } else {
-          setUser(null);
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Error al obtener sesión:', error);
+      console.log('[useAuth] Obteniendo sesión con supabase.auth.getSession()...');
+      const { data, error } = await supabase.auth.getSession();
+      console.log('[useAuth] data:', data);
+      console.log('[useAuth] error:', error);
+
+      const sessionUser = data?.session?.user;
+      if (sessionUser) {
+        console.log('[useAuth] Sesión encontrada, cargando perfil...');
+        await loadUserProfile(sessionUser);
+      } else {
+        console.log('[useAuth] No hay sesión, setUser(null)');
         setUser(null);
         setLoading(false);
       }
@@ -94,6 +94,7 @@ export const useAuth = () => {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
+        console.log('[useAuth] onAuthStateChange:', _event, session);
         const sessionUser = session?.user;
         if (sessionUser) {
           await loadUserProfile(sessionUser);
