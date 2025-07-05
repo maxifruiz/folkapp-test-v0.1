@@ -11,7 +11,8 @@ import { useEvents } from './hooks/useEvents';
 import { Music2, Sparkles } from 'lucide-react';
 import { UserProfile } from './components/UserProfile';
 
-function MainApp({ user }: { user: any }) {
+function App() {
+  const { user, loading, login, register, logout } = useAuth();
   const {
     events,
     allEvents,
@@ -24,7 +25,6 @@ function MainApp({ user }: { user: any }) {
     setSelectedProvince,
     setSelectedCity,
     clearFilters,
-    loading: eventsLoading,
   } = useEvents();
 
   const [currentPage, setCurrentPage] = useState<
@@ -48,6 +48,21 @@ function MainApp({ user }: { user: any }) {
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
   }, [currentPage, events.length]);
+
+  console.log('App.tsx - loading:', loading, 'user:', user);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-gray-700 text-xl">
+        <p>Cargando...</p>
+        <pre>{JSON.stringify({ loading, user }, null, 2)}</pre>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login onLogin={login} onRegister={register} />;
+  }
 
   const handleEventSubmit = async (eventData: any) => {
     try {
@@ -106,11 +121,7 @@ function MainApp({ user }: { user: any }) {
               onClearFilters={clearFilters}
             />
 
-            {eventsLoading && (
-              <div className="text-center py-12">Cargando eventos...</div>
-            )}
-
-            {!eventsLoading && visibleEvents.length === 0 ? (
+            {visibleEvents.length === 0 ? (
               <div className="text-center py-12">
                 <Music2 className="h-16 w-16 text-neutral-300 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-neutral-600 mb-2">
@@ -209,24 +220,6 @@ function MainApp({ user }: { user: any }) {
       </Layout>
     </div>
   );
-}
-
-function App() {
-  const { user, loading, login, register } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen text-gray-700 text-xl">
-        Cargando...
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Login onLogin={login} onRegister={register} />;
-  }
-
-  return <MainApp user={user} />;
 }
 
 export default App;
