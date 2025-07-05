@@ -52,64 +52,59 @@ export const useAuth = () => {
   };
 
   const loadUserProfile = async (sessionUser: any) => {
-    try {
-      await ensureProfileExists(sessionUser.id, sessionUser.email!);
+    await ensureProfileExists(sessionUser.id, sessionUser.email);
 
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', sessionUser.id)
-        .single();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', sessionUser.id)
+      .single();
 
-      if (error) {
-        console.error('[useAuth] Error cargando perfil:', error);
-      }
-
-      setUser({
-        id: sessionUser.id,
-        email: sessionUser.email!,
-        createdAt: sessionUser.created_at!,
-        fullName: profile?.full_name || '',
-        birthdate: profile?.birthdate || '',
-        instagram: profile?.instagram || '',
-        role: sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user',
-      });
-    } catch (err) {
-      console.error('[useAuth] Error en loadUserProfile:', err);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
+    setUser({
+      id: sessionUser.id,
+      email: sessionUser.email,
+      createdAt: sessionUser.created_at,
+      fullName: profile?.full_name || '',
+      birthdate: profile?.birthdate || '',
+      instagram: profile?.instagram || '',
+      role: sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user',
+    });
   };
 
   useEffect(() => {
-    // Esperar el evento inicial
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('[useAuth] onAuthStateChange:', event, session);
-        const sessionUser = session?.user;
-        if (sessionUser) {
-          await loadUserProfile(sessionUser);
-        } else {
-          setUser(null);
-          setLoading(false);
-        }
-      }
-    );
+    const init = async () => {
+      console.log('[useAuth] Obteniendo sesión con supabase.auth.getSession()...');
+      const { data } = await supabase.auth.getSession();
+      const sessionUser = data?.session?.user;
 
-    // Forzar recuperación manual (fallback)
-    supabase.auth.getSession().then(({ data }) => {
-      if (data?.session?.user) {
-        loadUserProfile(data.session.user);
-      } else {
-        setUser(null);
+      if (sessionUser) {
+        console.log('[useAuth] Sesión encontrada con getSession');
+        await loadUserProfile(sessionUser);
         setLoading(false);
-      }
-    });
+      } else {
+        console.log('[useAuth] Esperando evento SIGNED_IN...');
+        const { data: listener } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            if (event === 'SIGNED_IN' && session?.user) {
+              console.log('[useAuth] SIGNED_IN recibido');
+              await loadUserProfile(session.user);
+            }
+            setLoading(false);
+          }
+        );
 
-    return () => {
-      authListener?.subscription.unsubscribe();
+        // fallback: si en 1.5 seg no llegó SIGNED_IN, liberar el loading igual
+        setTimeout(() => {
+          setLoading(false);
+        }, 1500);
+
+        return () => {
+          listener.subscription.unsubscribe();
+        };
+      }
     };
+
+    init();
   }, []);
 
   const login = async (email: string, password: string) => {
