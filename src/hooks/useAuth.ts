@@ -62,7 +62,7 @@ export const useAuth = () => {
         .single();
 
       if (error) {
-        console.error('Error cargando perfil:', error);
+        console.error('[useAuth] Error cargando perfil:', error);
       }
 
       setUser({
@@ -75,7 +75,7 @@ export const useAuth = () => {
         role: sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user',
       });
     } catch (err) {
-      console.error('Error en loadUserProfile:', err);
+      console.error('[useAuth] Error en loadUserProfile:', err);
       setUser(null);
     } finally {
       setLoading(false);
@@ -83,28 +83,10 @@ export const useAuth = () => {
   };
 
   useEffect(() => {
-    const init = async () => {
-      setLoading(true);
-      console.log('[useAuth] Obteniendo sesión con supabase.auth.getSession()...');
-      const { data, error } = await supabase.auth.getSession();
-      if (error) console.error('[useAuth] Error getSession:', error);
-
-      const sessionUser = data?.session?.user;
-      if (sessionUser) {
-        console.log('[useAuth] Sesión encontrada, cargando perfil...');
-        await loadUserProfile(sessionUser);
-      } else {
-        console.log('[useAuth] No hay sesión, setUser(null)');
-        setUser(null);
-        setLoading(false);
-      }
-    };
-
-    init();
-
+    // Esperar el evento inicial
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        console.log('[useAuth] onAuthStateChange:', _event, session);
+      async (event, session) => {
+        console.log('[useAuth] onAuthStateChange:', event, session);
         const sessionUser = session?.user;
         if (sessionUser) {
           await loadUserProfile(sessionUser);
@@ -114,6 +96,16 @@ export const useAuth = () => {
         }
       }
     );
+
+    // Forzar recuperación manual (fallback)
+    supabase.auth.getSession().then(({ data }) => {
+      if (data?.session?.user) {
+        loadUserProfile(data.session.user);
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
+    });
 
     return () => {
       authListener?.subscription.unsubscribe();
