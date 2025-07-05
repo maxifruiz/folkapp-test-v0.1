@@ -12,6 +12,7 @@ import { Music2, Sparkles } from 'lucide-react';
 import { UserProfile } from './components/UserProfile';
 
 function App() {
+  // loading ahora viene del loadingInitial para evitar que quede eternamente cargando
   const { user, loading, login, register, logout } = useAuth();
   const {
     events,
@@ -223,3 +224,4 @@ function App() {
 }
 
 export default App;
+
