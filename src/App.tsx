@@ -13,52 +13,36 @@ import { UserProfile } from './components/UserProfile';
 
 function App() {
   const { user, loading, login, register, logout } = useAuth();
+
   const {
-  events,
-  allEvents,
-  filters,
-  addEvent,
-  toggleLike,
-  toggleAttending,
-  deleteEvent,
-  setSelectedType,
-  setSelectedProvince,
-  setSelectedCity,
-  clearFilters,
-} = useEvents();
-2. Reemplazala completamente por esto:
-tsx
-Copiar
-Editar
-const {
-  events,
-  allEvents,
-  filters,
-  addEvent,
-  toggleLike,
-  toggleAttending,
-  deleteEvent,
-  setSelectedType,
-  setSelectedProvince,
-  setSelectedCity,
-  clearFilters,
-  loading: eventsLoading,
-} = loading || !user
-  ? {
-      events: [],
-      allEvents: [],
-      filters: { selectedType: 'all', selectedProvince: '', selectedCity: '' },
-      addEvent: async () => {},
-      toggleLike: async () => {},
-      toggleAttending: async () => {},
-      deleteEvent: async () => {},
-      setSelectedType: () => {},
-      setSelectedProvince: () => {},
-      setSelectedCity: () => {},
-      clearFilters: () => {},
-      loading: true,
-    }
-  : useEvents();
+    events,
+    allEvents,
+    filters,
+    addEvent,
+    toggleLike,
+    toggleAttending,
+    deleteEvent,
+    setSelectedType,
+    setSelectedProvince,
+    setSelectedCity,
+    clearFilters,
+    loading: eventsLoading,
+  } = loading || !user
+    ? {
+        events: [],
+        allEvents: [],
+        filters: { selectedType: 'all', selectedProvince: '', selectedCity: '' },
+        addEvent: async () => {},
+        toggleLike: async () => {},
+        toggleAttending: async () => {},
+        deleteEvent: async () => {},
+        setSelectedType: () => {},
+        setSelectedProvince: () => {},
+        setSelectedCity: () => {},
+        clearFilters: () => {},
+        loading: true,
+      }
+    : useEvents();
 
   const [currentPage, setCurrentPage] = useState<
     'cartelera' | 'calendario' | 'publicar' | 'perfil' | 'admin'
@@ -151,7 +135,11 @@ const {
               onClearFilters={clearFilters}
             />
 
-            {visibleEvents.length === 0 ? (
+            {eventsLoading && (
+              <div className="text-center py-12">Cargando eventos...</div>
+            )}
+
+            {!eventsLoading && visibleEvents.length === 0 ? (
               <div className="text-center py-12">
                 <Music2 className="h-16 w-16 text-neutral-300 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-neutral-600 mb-2">
@@ -253,3 +241,4 @@ const {
 }
 
 export default App;
+
