@@ -15,7 +15,6 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Crear perfil si no existe (no bloquea render)
   const ensureProfileExists = async (userId: string, email: string) => {
     const { data: existingProfile } = await supabase
       .from('profiles')
@@ -53,16 +52,7 @@ export const useAuth = () => {
   };
 
   useEffect(() => {
-    const fetchSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      const sessionUser = data.session?.user;
-
-      if (!sessionUser) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
+    const loadUserProfile = async (sessionUser: any) => {
       await ensureProfileExists(sessionUser.id, sessionUser.email!);
 
       const { data: profile } = await supabase
@@ -83,35 +73,28 @@ export const useAuth = () => {
       setLoading(false);
     };
 
-    fetchSession();
+    const init = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      const sessionUser = data?.session?.user;
+      if (sessionUser) {
+        await loadUserProfile(sessionUser);
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
+    };
+
+    init();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         const sessionUser = session?.user;
-        if (!sessionUser) {
+        if (sessionUser) {
+          await loadUserProfile(sessionUser);
+        } else {
           setUser(null);
           setLoading(false);
-          return;
         }
-
-        await ensureProfileExists(sessionUser.id, sessionUser.email!);
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', sessionUser.id)
-          .single();
-
-        setUser({
-          id: sessionUser.id,
-          email: sessionUser.email!,
-          createdAt: sessionUser.created_at!,
-          fullName: profile?.full_name || '',
-          birthdate: profile?.birthdate || '',
-          instagram: profile?.instagram || '',
-          role: sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user',
-        });
-        setLoading(false);
       }
     );
 
@@ -171,4 +154,5 @@ export const useAuth = () => {
 
   return { user, loading, login, register, logout };
 };
+
 
