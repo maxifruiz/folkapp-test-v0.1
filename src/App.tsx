@@ -14,18 +14,51 @@ import { UserProfile } from './components/UserProfile';
 function App() {
   const { user, loading, login, register, logout } = useAuth();
   const {
-    events,
-    allEvents,
-    filters,
-    addEvent,
-    toggleLike,
-    toggleAttending,
-    deleteEvent,
-    setSelectedType,
-    setSelectedProvince,
-    setSelectedCity,
-    clearFilters,
-  } = useEvents();
+  events,
+  allEvents,
+  filters,
+  addEvent,
+  toggleLike,
+  toggleAttending,
+  deleteEvent,
+  setSelectedType,
+  setSelectedProvince,
+  setSelectedCity,
+  clearFilters,
+} = useEvents();
+2. Reemplazala completamente por esto:
+tsx
+Copiar
+Editar
+const {
+  events,
+  allEvents,
+  filters,
+  addEvent,
+  toggleLike,
+  toggleAttending,
+  deleteEvent,
+  setSelectedType,
+  setSelectedProvince,
+  setSelectedCity,
+  clearFilters,
+  loading: eventsLoading,
+} = loading || !user
+  ? {
+      events: [],
+      allEvents: [],
+      filters: { selectedType: 'all', selectedProvince: '', selectedCity: '' },
+      addEvent: async () => {},
+      toggleLike: async () => {},
+      toggleAttending: async () => {},
+      deleteEvent: async () => {},
+      setSelectedType: () => {},
+      setSelectedProvince: () => {},
+      setSelectedCity: () => {},
+      clearFilters: () => {},
+      loading: true,
+    }
+  : useEvents();
 
   const [currentPage, setCurrentPage] = useState<
     'cartelera' | 'calendario' | 'publicar' | 'perfil' | 'admin'
