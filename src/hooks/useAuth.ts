@@ -74,11 +74,17 @@ export const useAuth = () => {
     };
 
     const init = async () => {
-      const { data, error } = await supabase.auth.getSession();
-      const sessionUser = data?.session?.user;
-      if (sessionUser) {
-        await loadUserProfile(sessionUser);
-      } else {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const sessionUser = data?.session?.user;
+        if (sessionUser) {
+          await loadUserProfile(sessionUser);
+        } else {
+          setUser(null);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Error al obtener sesión:', error);
         setUser(null);
         setLoading(false);
       }
@@ -154,5 +160,6 @@ export const useAuth = () => {
 
   return { user, loading, login, register, logout };
 };
+
 
 
