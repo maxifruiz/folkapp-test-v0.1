@@ -14,6 +14,23 @@ import { UserProfile } from './components/UserProfile';
 function App() {
   const { user, loading, login, register, logout } = useAuth();
 
+  const [eventHooks, setEventHooks] = useState<any>(null);
+
+  useEffect(() => {
+    if (!loading && user) {
+      const hooks = useEvents();
+      setEventHooks(hooks);
+    }
+  }, [loading, user]);
+
+  if (loading || !user || !eventHooks) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-gray-700 text-xl">
+        Cargando...
+      </div>
+    );
+  }
+
   const {
     events,
     allEvents,
@@ -27,22 +44,7 @@ function App() {
     setSelectedCity,
     clearFilters,
     loading: eventsLoading,
-  } = loading || !user
-    ? {
-        events: [],
-        allEvents: [],
-        filters: { selectedType: 'all', selectedProvince: '', selectedCity: '' },
-        addEvent: async () => {},
-        toggleLike: async () => {},
-        toggleAttending: async () => {},
-        deleteEvent: async () => {},
-        setSelectedType: () => {},
-        setSelectedProvince: () => {},
-        setSelectedCity: () => {},
-        clearFilters: () => {},
-        loading: true,
-      }
-    : useEvents();
+  } = eventHooks;
 
   const [currentPage, setCurrentPage] = useState<
     'cartelera' | 'calendario' | 'publicar' | 'perfil' | 'admin'
@@ -65,18 +67,6 @@ function App() {
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
   }, [currentPage, events.length]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen text-gray-700 text-xl">
-        Cargando...
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Login onLogin={login} onRegister={register} />;
-  }
 
   const handleEventSubmit = async (eventData: any) => {
     try {
