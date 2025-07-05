@@ -52,32 +52,42 @@ export const useAuth = () => {
   };
 
   const loadUserProfile = async (sessionUser: any) => {
-    await ensureProfileExists(sessionUser.id, sessionUser.email!);
+    try {
+      await ensureProfileExists(sessionUser.id, sessionUser.email!);
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', sessionUser.id)
-      .single();
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', sessionUser.id)
+        .single();
 
-    setUser({
-      id: sessionUser.id,
-      email: sessionUser.email!,
-      createdAt: sessionUser.created_at!,
-      fullName: profile?.full_name || '',
-      birthdate: profile?.birthdate || '',
-      instagram: profile?.instagram || '',
-      role: sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user',
-    });
-    setLoading(false);
+      if (error) {
+        console.error('Error cargando perfil:', error);
+      }
+
+      setUser({
+        id: sessionUser.id,
+        email: sessionUser.email!,
+        createdAt: sessionUser.created_at!,
+        fullName: profile?.full_name || '',
+        birthdate: profile?.birthdate || '',
+        instagram: profile?.instagram || '',
+        role: sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user',
+      });
+    } catch (err) {
+      console.error('Error en loadUserProfile:', err);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     const init = async () => {
+      setLoading(true);
       console.log('[useAuth] Obteniendo sesión con supabase.auth.getSession()...');
       const { data, error } = await supabase.auth.getSession();
-      console.log('[useAuth] data:', data);
-      console.log('[useAuth] error:', error);
+      if (error) console.error('[useAuth] Error getSession:', error);
 
       const sessionUser = data?.session?.user;
       if (sessionUser) {
@@ -100,8 +110,8 @@ export const useAuth = () => {
           await loadUserProfile(sessionUser);
         } else {
           setUser(null);
+          setLoading(false);
         }
-        setLoading(false);  // <-- Este es el cambio clave
       }
     );
 
