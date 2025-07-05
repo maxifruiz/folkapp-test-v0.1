@@ -11,26 +11,7 @@ import { useEvents } from './hooks/useEvents';
 import { Music2, Sparkles } from 'lucide-react';
 import { UserProfile } from './components/UserProfile';
 
-function App() {
-  const { user, loading, login, register, logout } = useAuth();
-
-  const [eventHooks, setEventHooks] = useState<any>(null);
-
-  useEffect(() => {
-    if (!loading && user) {
-      const hooks = useEvents();
-      setEventHooks(hooks);
-    }
-  }, [loading, user]);
-
-  if (loading || !user || !eventHooks) {
-    return (
-      <div className="flex items-center justify-center min-h-screen text-gray-700 text-xl">
-        Cargando...
-      </div>
-    );
-  }
-
+function MainApp({ user }: { user: any }) {
   const {
     events,
     allEvents,
@@ -44,7 +25,7 @@ function App() {
     setSelectedCity,
     clearFilters,
     loading: eventsLoading,
-  } = eventHooks;
+  } = useEvents();
 
   const [currentPage, setCurrentPage] = useState<
     'cartelera' | 'calendario' | 'publicar' | 'perfil' | 'admin'
@@ -230,5 +211,22 @@ function App() {
   );
 }
 
-export default App;
+function App() {
+  const { user, loading, login, register } = useAuth();
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-gray-700 text-xl">
+        Cargando...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login onLogin={login} onRegister={register} />;
+  }
+
+  return <MainApp user={user} />;
+}
+
+export default App;
