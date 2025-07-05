@@ -100,8 +100,8 @@ export const useAuth = () => {
           await loadUserProfile(sessionUser);
         } else {
           setUser(null);
-          setLoading(false);
         }
+        setLoading(false);  // <-- Este es el cambio clave
       }
     );
 
