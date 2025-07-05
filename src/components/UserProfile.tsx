@@ -141,7 +141,6 @@ export const UserProfile = () => {
         </p>
       </div>
 
-      {/* Botón expandir / contraer eventos */}
       <button
         onClick={() => setEventsExpanded((v) => !v)}
         className="flex items-center justify-between w-full bg-red-600 hover:bg-red-700 transition text-white font-semibold rounded-lg px-4 py-3 mb-4 select-none"
@@ -152,7 +151,6 @@ export const UserProfile = () => {
         {eventsExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
       </button>
 
-      {/* Lista desplegable con visual de EventCard */}
       <div
         id="user-events-list"
         className={`transition-opacity duration-500 ease-in-out ${
@@ -177,7 +175,12 @@ export const UserProfile = () => {
       </div>
 
       <button
-        onClick={logout}
+        onClick={async () => {
+          const success = await logout();
+          if (success) {
+            window.location.reload(); // fuerza el reload y vuelve al login
+          }
+        }}
         className="mt-6 w-full px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition select-none"
       >
         Cerrar sesión
@@ -189,4 +192,5 @@ export const UserProfile = () => {
     </div>
   );
 };
+
 
