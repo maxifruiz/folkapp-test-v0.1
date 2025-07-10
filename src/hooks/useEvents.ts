@@ -1,5 +1,3 @@
-// src/hooks/useEvents.ts
-
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -87,7 +85,15 @@ export function useEvents() {
         },
       }));
 
-      setAllEvents(formatted);
+      console.log(`fetchEvents: ${data?.length || 0} eventos cargados`);
+
+      const oldString = JSON.stringify(allEvents);
+      const newString = JSON.stringify(formatted);
+
+      if (oldString !== newString) {
+        setAllEvents(formatted);
+      }
+
       setLoading(false);
     } catch (error) {
       console.error('Error al cargar eventos:', error);
@@ -114,6 +120,12 @@ export function useEvents() {
 
   useEffect(() => {
     fetchEvents();
+
+    const interval = setInterval(() => {
+      fetchEvents();
+    }, 10000); // cada 10 segundos
+
+    return () => clearInterval(interval);
   }, []);
 
   const updateReactions = async (
