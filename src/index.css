@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .animate-fade-in {
+    @apply transition-opacity duration-300 ease-in-out;
+    opacity: 0;
+    animation: fadeIn 0.3s forwards;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out forwards;
+  }
+
+  .animate-flamear {
+    animation: flameo 2.5s infinite ease-in-out;
+    transform-origin: left center;
+  }
+
+  /* Animación para fade-up con gradiente */
+  .animate-fade-up-delay {
+    animation-name: fadeUp;
+    animation-duration: 0.5s;
+    animation-fill-mode: forwards;
+    animation-timing-function: ease-out;
+    opacity: 0;
+  }
+
+  /* NUEVA animación lenta y suave para aparecer desde abajo */
+  .animate-slide-up-fade-in {
+    animation: slideUpFadeIn 1.5s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes flameo {
+    0% {
+      transform: rotateZ(0deg) skewX(0deg);
+    }
+    25% {
+      transform: rotateZ(-2deg) skewX(-1deg);
+    }
+    50% {
+      transform: rotateZ(1deg) skewX(2deg);
+    }
+    75% {
+      transform: rotateZ(-1deg) skewX(-1deg);
+    }
+    100% {
+      transform: rotateZ(0deg) skewX(0deg);
+    }
+  }
+
+  @keyframes fadeUp {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+      background: linear-gradient(90deg, rgba(255,255,255,0.2), rgba(255,255,255,0));
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+      background: transparent;
+    }
+  }
+
+  /* NUEVO keyframe para la animación lenta */
+  @keyframes slideUpFadeIn {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+      background: linear-gradient(90deg, rgba(255,255,255,0.2), rgba(255,255,255,0));
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+      background: transparent;
+    }
+  }
+
+  /* Animación para que el GIF suba y desaparezca en 2.5s */
+  @keyframes like-move {
+    0% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-80px);
+      opacity: 0;
+    }
+  }
+  .animate-like-move {
+    animation: like-move 2.5s ease-out forwards;
+  }
+
+  /* Animación rápida pop para explosión y texto */
+  @keyframes pop {
+    0% {
+      transform: scale(0.5);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.2);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 0;
+    }
+  }
+  .animate-pop {
+    animation: pop 0.6s ease-out forwards;
+  }
+
+  /* ✅ NUEVO: Animación de desvanecimiento suave */
+  @keyframes fadeOut {
+    0% {
+      opacity: 1;
+    }
+    80% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+
+  .animate-fade-out {
+    animation: fadeOut 2s ease-out forwards;
+  }
+ 
+  body {
+  @apply bg-transparent;
+  }
+}
