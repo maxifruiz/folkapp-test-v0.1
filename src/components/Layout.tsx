@@ -32,6 +32,17 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
   const [showNotifications, setShowNotifications] = useState(false);
   const [shouldShake, setShouldShake] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Popup arriba notificaciones nuevas
+  const [newNotiPopupVisible, setNewNotiPopupVisible] = useState(false);
+  const [popupTranslateX, setPopupTranslateX] = useState(0);
+  const [popupDragStartX, setPopupDragStartX] = useState<number | null>(null);
+  const [bomboSonado, setBomboSonado] = useState(false);
+  const popupTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Para controlar si hubo notificaciones nuevas
+  const previousUnreadCount = useRef(0);
 
   // Cargar notificaciones
   const fetchNotifications = async () => {
@@ -59,15 +70,73 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
     const interval = setInterval(() => {
       fetchNotifications();
 
-      // Animar icono si hay notificaciones sin leer
       if (notifications.some(n => !n.leido)) {
         setShouldShake(true);
         setTimeout(() => setShouldShake(false), 500);
       }
-    }, 15000); // cada 15 segundos
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [user?.id, notifications]);
+
+  // Detectar nuevas notificaciones no leídas y mostrar popup + sonar bombo 1 sola vez
+  useEffect(() => {
+    const unreadCount = notifications.filter(n => !n.leido).length;
+
+    if (
+      unreadCount > 0 &&
+      unreadCount > previousUnreadCount.current &&
+      !newNotiPopupVisible
+    ) {
+      setNewNotiPopupVisible(true);
+      setPopupTranslateX(0);
+
+      if (!audioRef.current) {
+        audioRef.current = new Audio('/bombo.mp3');
+      }
+      if (!bomboSonado) {
+        audioRef.current.play().catch(() => {});
+        setBomboSonado(true);
+      }
+
+      if (popupTimeout.current) clearTimeout(popupTimeout.current);
+
+      popupTimeout.current = setTimeout(() => {
+        setNewNotiPopupVisible(false);
+        setPopupTranslateX(0);
+        setBomboSonado(false);
+        popupTimeout.current = null;
+      }, 3000);
+    }
+
+    previousUnreadCount.current = unreadCount;
+  }, [notifications]);
+
+  // Manejo drag para cerrar popup deslizando
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    setPopupDragStartX(clientX);
+  };
+
+  const handleDragMove = (e: React.MouseEvent | React.TouchEvent) => {
+    if (popupDragStartX === null) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const deltaX = clientX - popupDragStartX;
+    setPopupTranslateX(deltaX);
+  };
+
+  const handleDragEnd = () => {
+    if (Math.abs(popupTranslateX) > 100) {
+      if (popupTimeout.current) {
+        clearTimeout(popupTimeout.current);
+        popupTimeout.current = null;
+      }
+      setNewNotiPopupVisible(false);
+      setPopupTranslateX(0);
+      setBomboSonado(false);
+    }
+    setPopupDragStartX(null);
+  };
 
   // Marcar todas como leídas
   const markAllAsRead = async () => {
@@ -87,7 +156,7 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
     fetchNotifications();
   };
 
-  // Nueva función para limpiar notificaciones leídas
+  // Limpiar notificaciones leídas
   const clearReadNotifications = async () => {
     const readIds = notifications.filter(n => n.leido).map(n => n.id);
     if (readIds.length > 0) {
@@ -109,6 +178,26 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
   if (user?.role === 'admin') {
     navigationItems.push({ id: 'admin', label: 'Admin', icon: Shield });
   }
+
+  // Detectar click fuera del modal para cerrar notificaciones
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target as Node)
+      ) {
+        setShowNotifications(false);
+      }
+    }
+    if (showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNotifications]);
 
   return (
     <div className="min-h-screen font-sans text-neutral-900 relative overflow-hidden">
@@ -132,7 +221,7 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
           .bg2 {
             animation-direction: alternate-reverse;
             animation-duration: 4s;
-            background-image: linear-gradient(-60deg, #f5e8d5 50%, #eeb6ac 50%);
+            background-image: linear-gradient(-60deg, #f5e8d5 50%, #800000 50%);
           }
           .bg3 {
             animation-duration: 5s;
@@ -193,8 +282,163 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
           .animate-shake {
             animation: shake 0.3s ease-in-out;
           }
+
+          /* BOTON DE NOTIFICACIONES CON COLOR BORDO Y SOMBRA */
+          .noti-button {
+            background-color: #f5e8d5;
+            border: 2px solid #800000;
+            box-shadow: 0 2px 8px rgb(128 0 0 / 0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+          }
+          .noti-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgb(128 0 0 / 0.6);
+          }
+
+          @keyframes fadeSlideDown {
+            0% {
+              opacity: 0;
+              transform: translateY(-10px);
+            }
+            100% {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
+          /* MODAL DE NOTIFICACIONES */
+          .noti-modal {
+            background-color: #f5e8d5;
+            border: 2px solid #800000;
+            border-radius: 1.25rem;
+            box-shadow: 0 6px 16px rgb(128 0 0 / 0.5);
+            padding: 0.75rem 1rem;
+            width: 300px;
+            max-height: 60vh;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            font-size: 0.875rem;
+            animation: fadeSlideDown 0.3s ease forwards;
+          }
+          .noti-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+            color: #800000;
+            font-size: 1.1rem;
+          }
+          .noti-modal-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-right: 0.3rem;
+            margin-bottom: 0.4rem;
+          }
+          .noti-item {
+            background-color: #fff3db;
+            border: 1.5px solid #d1a58b;
+            border-radius: 0.5rem;
+            padding: 0.3rem 0.5rem;
+            margin-bottom: 0.3rem;
+            line-height: 1.2;
+            color: #4b2c1a;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+          }
+          .noti-item.read {
+            background-color: #f5e8d5;
+            border-color: #800000;
+            color: #800000;
+          }
+          .noti-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1.5px solid #800000;
+            flex-shrink: 0;
+          }
+          .noti-text {
+            flex-grow: 1;
+          }
+          .noti-item button {
+            font-size: 0.7rem;
+            color: #2f6b36;
+            font-weight: 600;
+            background: none;
+            border: none;
+            cursor: pointer;
+            margin-left: 0.3rem;
+          }
+          .noti-item button:hover {
+            text-decoration: underline;
+          }
+          .noti-clear-btn {
+            margin-top: 0.3rem;
+            align-self: center;
+            font-size: 0.85rem;
+            color: #800000;
+            font-weight: 600;
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-decoration: underline;
+          }
+          .noti-clear-btn:disabled {
+            color: #c9a9a2;
+            cursor: default;
+            text-decoration: none;
+          }
+
+          /* POPUP DE NOTIFICACIONES NUEVAS ARRIBA */
+          .new-noti-popup {
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(calc(-50% + var(--popup-translate-x, 0px)));
+            background-color: #f5e8d5;
+            border: 2px solid #800000;
+            border-radius: 1rem;
+            box-shadow: 0 4px 10px rgb(128 0 0 / 0.5);
+            padding: 0.75rem 1.2rem;
+            font-weight: 600;
+            color: #800000;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            user-select: none;
+            cursor: grab;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            z-index: 10000;
+          }
+          .new-noti-popup:active {
+            cursor: grabbing;
+          }
         `}
       </style>
+
+      {/* Popup notificación arriba */}
+      {newNotiPopupVisible && (
+        <div
+          className="new-noti-popup"
+          style={{ '--popup-translate-x': `${popupTranslateX}px` } as React.CSSProperties}
+          onMouseDown={handleDragStart}
+          onTouchStart={handleDragStart}
+          onMouseMove={handleDragMove}
+          onTouchMove={handleDragMove}
+          onMouseUp={handleDragEnd}
+          onTouchEnd={handleDragEnd}
+          onMouseLeave={handleDragEnd}
+          role="alert"
+          aria-live="assertive"
+        >
+          <span>Tienes {notifications.filter(n => !n.leido).length} notificación{notifications.filter(n => !n.leido).length > 1 ? 'es' : ''} nuevas</span>
+          <img src="/notificacion.png" alt="Campanita" className="h-6 w-6" />
+        </div>
+      )}
 
       <div className="relative z-10">
         {/* Header */}
@@ -211,7 +455,9 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                 <div className="relative" ref={notificationRef}>
                   <button
                     onClick={() => setShowNotifications(!showNotifications)}
-                    className="relative p-2 bg-white rounded-full shadow-md hover:shadow-lg transition transform hover:scale-105"
+                    className="noti-button relative p-2 rounded-full shadow-md"
+                    aria-label="Mostrar notificaciones"
+                    title="Mostrar notificaciones"
                   >
                     <img
                       src="/notificacion.png"
@@ -226,50 +472,55 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                   </button>
 
                   {showNotifications && (
-                    <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg z-50 p-4 border border-gray-200 flex flex-col max-h-[70vh]">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-semibold text-folkiRed">Notificaciones</span>
+                    <div className="noti-modal absolute right-0 mt-2 z-50" role="dialog" aria-modal="true" aria-label="Lista de notificaciones">
+                      <div className="noti-modal-header">
+                        <span>Notificaciones</span>
                         <button
-                          className="text-sm text-blue-600 hover:underline"
+                          className="text-sm text-blue-700 hover:underline"
                           onClick={markAllAsRead}
+                          title="Marcar todas como leídas"
                         >
                           Marcar todo como leído
                         </button>
                       </div>
-                      <div className="space-y-2 overflow-y-auto flex-grow">
+                      <div className="noti-modal-list">
                         {notifications.length === 0 && (
-                          <p className="text-sm text-gray-500">Sin notificaciones</p>
+                          <p className="text-sm text-gray-600">Sin notificaciones</p>
                         )}
                         {notifications.map((n) => (
                           <div
                             key={n.id}
-                            className={`p-2 rounded-md border ${
-                              n.leido ? 'bg-gray-100' : 'bg-yellow-100 border-yellow-300'
-                            }`}
+                            className={`noti-item ${n.leido ? 'read' : ''}`}
                           >
-                            <div className="flex justify-between items-center">
-                              <p className="text-sm text-gray-800">
-                                {n.type === 'like'
-                                  ? `🧡 ${n.from_user?.full_name} le dio like a ${n.event?.type} "${n.event?.title}"`
-                                  : `🎟️ ${n.from_user?.full_name} indicó que asistirá a ${n.event?.type} "${n.event?.title}"`}
-                              </p>
-                              {!n.leido && (
-                                <button
-                                  className="text-green-600 text-xs font-medium hover:underline"
-                                  onClick={() => markOneAsRead(n.id)}
-                                >
-                                  ✓ Leído
-                                </button>
-                              )}
+                            {n.from_user?.avatar ? (
+                              <img src={n.from_user.avatar} alt={`${n.from_user.full_name} avatar`} className="noti-avatar" />
+                            ) : (
+                              <div className="noti-avatar bg-gray-300 flex items-center justify-center text-sm text-gray-600 font-semibold">
+                                ?
+                              </div>
+                            )}
+                            <div className="noti-text">
+                              {n.type === 'like'
+                                ? `🧡 ${n.from_user?.full_name} le dio like a ${n.event?.type} "${n.event?.title}"`
+                                : `🗓️ ${n.from_user?.full_name} indicó que asistirá a ${n.event?.type} "${n.event?.title}"`}
                             </div>
+                            {!n.leido && (
+                              <button
+                                onClick={() => markOneAsRead(n.id)}
+                                aria-label="Marcar notificación como leída"
+                                title="Marcar como leído"
+                              >
+                                ✓
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
-                      {/* Botón limpiar notificaciones leídas */}
                       <button
-                        className="mt-3 self-center text-sm text-red-600 hover:underline"
+                        className="noti-clear-btn"
                         onClick={clearReadNotifications}
                         disabled={notifications.filter(n => n.leido).length === 0}
+                        title="Limpiar notificaciones leídas"
                       >
                         Limpiar notificaciones
                       </button>
@@ -278,7 +529,11 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                 </div>
 
                 {/* Anuncios (deshabilitado) */}
-                <button disabled className="p-2 bg-white rounded-full shadow-md opacity-70 cursor-not-allowed">
+                <button
+                  disabled
+                  className="p-2 bg-white rounded-full shadow-md opacity-70 cursor-not-allowed"
+                  title="Anuncios deshabilitados"
+                >
                   <img src="/anuncio.png" alt="Anuncios" className="h-6 w-6" />
                 </button>
               </div>
@@ -321,7 +576,7 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                 </div>
               </div>
               <p className="text-folkiCream text-base max-w-lg mx-auto">
-                La primera red del folklore argentino. Conectando eventos, creando comunidad.
+                La primera red del folklore Argentino. Conectando eventos, creando comunidad.
               </p>
             </div>
           </div>
