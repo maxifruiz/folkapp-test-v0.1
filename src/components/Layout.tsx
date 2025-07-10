@@ -29,7 +29,11 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [shouldShake, setShouldShake] = useState(false);
+  const [showBanner, setShowBanner] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const bomboRef = useRef<HTMLAudioElement | null>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
+  const prevUnreadRef = useRef(0);
 
   const fetchNotifications = async () => {
     if (!user?.id) return;
@@ -51,6 +55,32 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
     const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
   }, [user?.id]);
+
+  useEffect(() => {
+    const newCount = notifications.filter(n => !n.leido).length;
+    if (newCount > prevUnreadRef.current) {
+      setShowBanner(true);
+      if (bomboRef.current) {
+        bomboRef.current.currentTime = 0;
+        bomboRef.current.play().catch(() => {});
+      }
+      setTimeout(() => setShowBanner(false), 5000);
+    }
+    prevUnreadRef.current = newCount;
+    setUnreadCount(newCount);
+  }, [notifications]);
+
+  useEffect(() => {
+    const enableAudio = () => {
+      if (bomboRef.current) {
+        bomboRef.current.play().catch(() => {});
+        bomboRef.current.pause();
+        bomboRef.current.currentTime = 0;
+      }
+      document.removeEventListener('click', enableAudio);
+    };
+    document.addEventListener('click', enableAudio);
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -91,6 +121,14 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
     fetchNotifications();
   };
 
+  const deleteReadNotifications = async () => {
+    const ids = notifications.filter(n => n.leido).map(n => n.id);
+    if (ids.length > 0) {
+      await supabase.from('notifications').delete().in('id', ids);
+      fetchNotifications();
+    }
+  };
+
   const navigationItems = [
     { id: 'cartelera', label: 'Cartelera', icon: BookImage },
     { id: 'calendario', label: 'Calendario', icon: CalendarCheck },
@@ -103,6 +141,16 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
 
   return (
     <div className="min-h-screen font-sans text-neutral-900 relative overflow-hidden">
+      <audio ref={bomboRef} src="/bombo.mp3" preload="auto" />
+
+      {showBanner && unreadCount > 0 && (
+        <div
+          className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-folkiCream text-folkiRed px-4 py-2 rounded-xl shadow-xl text-sm font-semibold z-[9999] cursor-pointer select-none animate-[pop_0.4s_ease-out]"
+        >
+          Tienes {unreadCount} notificación{unreadCount !== 1 ? 'es' : ''} nueva{unreadCount !== 1 ? 's' : ''} 🔔
+        </div>
+      )}
+
       <div className="bg"></div>
       <div className="bg bg2"></div>
       <div className="bg bg3"></div>
@@ -184,6 +232,16 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
         .animate-shake {
           animation: shake 0.3s ease-in-out;
         }
+        @keyframes tv-pop {
+          0% {transform: scale(0.05) translateX(0); opacity: 0;}
+          70% {transform: scale(1.2) translateX(-50%); opacity: 1;}
+          100% {transform: scale(1) translateX(-50%);}
+        }
+        @keyframes pop {
+          0% { transform: scaleY(0.02) scaleX(0) translateX(-50%); opacity: 0; }
+          50% { transform: scaleY(0.05) scaleX(1.2) translateX(-50%); opacity: 1; }
+          100% { transform: scaleY(1) scaleX(1) translateX(-50%); }
+        }
         `}
       </style>
 
@@ -262,6 +320,16 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                           ))
                         )}
                       </div>
+
+                      {/* 🔽 AÑADIDO NUEVO: botón para limpiar notificaciones leídas */}
+                      <div className="pt-3 border-t border-folkiAmber mt-3">
+                        <button
+                          onClick={deleteReadNotifications}
+                          className="w-full text-xs text-red-700 hover:underline text-center"
+                        >
+                          Limpiar notificaciones leídas
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -314,3 +382,4 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
     </div>
   );
 }
+
