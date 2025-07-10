@@ -58,14 +58,16 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
     fetchNotifications();
     const interval = setInterval(() => {
       fetchNotifications();
+
+      // Animar icono si hay notificaciones sin leer
       if (notifications.some(n => !n.leido)) {
         setShouldShake(true);
         setTimeout(() => setShouldShake(false), 500);
       }
-    }, 60000); // cada 1 minuto
+    }, 15000); // cada 15 segundos
 
     return () => clearInterval(interval);
-  }, [user?.id]);
+  }, [user?.id, notifications]);
 
   // Marcar todas como leídas
   const markAllAsRead = async () => {
@@ -83,6 +85,18 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
   const markOneAsRead = async (id: string) => {
     await supabase.from('notifications').update({ leido: true }).eq('id', id);
     fetchNotifications();
+  };
+
+  // Nueva función para limpiar notificaciones leídas
+  const clearReadNotifications = async () => {
+    const readIds = notifications.filter(n => n.leido).map(n => n.id);
+    if (readIds.length > 0) {
+      await supabase
+        .from('notifications')
+        .delete()
+        .in('id', readIds);
+      fetchNotifications();
+    }
   };
 
   const navigationItems = [
@@ -212,7 +226,7 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                   </button>
 
                   {showNotifications && (
-                    <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg z-50 p-4 border border-gray-200">
+                    <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg z-50 p-4 border border-gray-200 flex flex-col max-h-[70vh]">
                       <div className="flex justify-between items-center mb-2">
                         <span className="font-semibold text-folkiRed">Notificaciones</span>
                         <button
@@ -222,11 +236,16 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                           Marcar todo como leído
                         </button>
                       </div>
-                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                      <div className="space-y-2 overflow-y-auto flex-grow">
+                        {notifications.length === 0 && (
+                          <p className="text-sm text-gray-500">Sin notificaciones</p>
+                        )}
                         {notifications.map((n) => (
                           <div
                             key={n.id}
-                            className={`p-2 rounded-md border ${n.leido ? 'bg-gray-100' : 'bg-yellow-100 border-yellow-300'}`}
+                            className={`p-2 rounded-md border ${
+                              n.leido ? 'bg-gray-100' : 'bg-yellow-100 border-yellow-300'
+                            }`}
                           >
                             <div className="flex justify-between items-center">
                               <p className="text-sm text-gray-800">
@@ -245,8 +264,15 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                             </div>
                           </div>
                         ))}
-                        {notifications.length === 0 && <p className="text-sm text-gray-500">Sin notificaciones</p>}
                       </div>
+                      {/* Botón limpiar notificaciones leídas */}
+                      <button
+                        className="mt-3 self-center text-sm text-red-600 hover:underline"
+                        onClick={clearReadNotifications}
+                        disabled={notifications.filter(n => n.leido).length === 0}
+                      >
+                        Limpiar notificaciones
+                      </button>
                     </div>
                   )}
                 </div>
