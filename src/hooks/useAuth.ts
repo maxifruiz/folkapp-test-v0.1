@@ -67,7 +67,7 @@ export const useAuth = () => {
       fullName: profile?.full_name || '',
       birthdate: profile?.birthdate || '',
       instagram: profile?.instagram || '',
-      role: sessionUser.email === 'maxif.ruiz@gmail.com' ? 'admin' : 'user',
+      role: ['maxif.ruiz@gmail.com', 'eventos.folki@gmail.com'].includes(sessionUser.email) ? 'admin' : 'user',
     });
   };
 
