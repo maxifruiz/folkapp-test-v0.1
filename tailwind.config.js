@@ -26,11 +26,12 @@ export default {
       },
       animation: {
         'fade-up': 'fadeUp 0.7s ease-out forwards',
-        'fade-left': 'fadeLeft 0.7s ease-out forwards', // Nuevo efecto para deslizamiento
+        'fade-left': 'fadeLeft 0.7s ease-out forwards',
       },
     },
   },
   plugins: [
     require('@tailwindcss/line-clamp'),
+    require('tailwind-scrollbar'), // 👉 agregado para scroll estético
   ],
 };
