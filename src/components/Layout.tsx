@@ -80,7 +80,7 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
         setShouldShake(true);
         setTimeout(() => setShouldShake(false), 500);
       }
-    }, 15000);
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [user?.id, notifications]);

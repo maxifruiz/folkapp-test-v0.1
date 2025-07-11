@@ -123,7 +123,7 @@ export function useEvents() {
 
     const interval = setInterval(() => {
       fetchEvents();
-    }, 10000); // cada 10 segundos
+    }, 60000); // cada 60 segundos
 
     return () => clearInterval(interval);
   }, []);
