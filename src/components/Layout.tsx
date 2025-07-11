@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CalendarCheck, Plus, BookImage, User, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import AdminAnnouncements from './AdminAnnouncements';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -528,14 +529,8 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                   )}
                 </div>
 
-                {/* Anuncios (deshabilitado) */}
-                <button
-                  disabled
-                  className="p-2 bg-white rounded-full shadow-md opacity-70 cursor-not-allowed"
-                  title="Anuncios deshabilitados"
-                >
-                  <img src="/anuncio.png" alt="Anuncios" className="h-6 w-6" />
-                </button>
+                 {/* 📢 Anuncios funcionales */}
+                <AdminAnnouncements userId={user?.id} />
               </div>
             </div>
           </div>
@@ -576,7 +571,7 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                 </div>
               </div>
               <p className="text-folkiCream text-base max-w-lg mx-auto">
-                La primera red del folklore Argentino. Conectando eventos, creando comunidad.
+                La primer cartelera del Folklore Argentino. Conectando eventos, creando comunidad.
               </p>
             </div>
           </div>

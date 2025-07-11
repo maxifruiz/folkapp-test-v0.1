@@ -8,6 +8,7 @@ import {
   Users,
   Layers,
   Search,
+  Megaphone
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient'; // Ajusta según donde tengas el cliente Supabase
@@ -55,6 +56,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ events, onDelete
   // Estado y lista para modal usuarios registrados
   const [showUsersModal, setShowUsersModal] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+
+  // Estado para modal de anuncio
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+  const [announcementTitle, setAnnouncementTitle] = useState('');
+  const [announcementMessage, setAnnouncementMessage] = useState('');
 
   useEffect(() => {
     if (!showUsersModal) return;
@@ -119,29 +125,58 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ events, onDelete
   const cancelDelete = () => setConfirmDeleteEventId(null);
 
   const handleDelete = async () => {
-  if (!confirmDeleteEventId) return;
-  try {
-    const { error } = await supabase.from('events').delete().eq('id', confirmDeleteEventId);
-    if (error) throw error;
+    if (!confirmDeleteEventId) return;
+    try {
+      const { error } = await supabase.from('events').delete().eq('id', confirmDeleteEventId);
+      if (error) throw error;
 
-    toast.success('Evento eliminado correctamente');
-    setConfirmDeleteEventId(null);
+      toast.success('Evento eliminado correctamente');
+      setConfirmDeleteEventId(null);
 
-    // Refrescar página y mantener en admin
-    setTimeout(() => {
-      window.location.reload();
-    }, 1000); // Le damos un segundo para que se vea el toast
-  } catch (err) {
-    toast.error('Error al eliminar el evento');
-  }
-};
+      // Refrescar página y mantener en admin
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000); // Le damos un segundo para que se vea el toast
+    } catch (err) {
+      toast.error('Error al eliminar el evento');
+    }
+  };
 
+  // Función para enviar anuncio a Supabase
+  const handleSendAnnouncement = async () => {
+    if (!announcementTitle || !announcementMessage) {
+      toast.error('Completa ambos campos');
+      return;
+    }
+    const { error } = await supabase.from('announcements').insert({
+      title: announcementTitle,
+      message: announcementMessage,
+    });
+    if (error) {
+      toast.error('Error al enviar anuncio');
+    } else {
+      toast.success('Anuncio enviado');
+      setAnnouncementTitle('');
+      setAnnouncementMessage('');
+      setShowAnnouncementModal(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-transparent text-white p-6 max-w-7xl mx-auto">
       <Toaster position="top-right" />
 
       <h1 className="text-4xl font-bold mb-8">Panel de Administración</h1>
+
+      {/* Botón para enviar anuncio */}
+      <div className="mb-6">
+        <button
+          onClick={() => setShowAnnouncementModal(true)}
+          className="bg-yellow-600 px-4 py-2 rounded hover:bg-yellow-700 flex items-center gap-2"
+        >
+          <Megaphone className="w-5 h-5" /> Enviar nuevo anuncio
+        </button>
+      </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
@@ -195,7 +230,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ events, onDelete
         </select>
       </div>
 
-      {/* NUEVO: Botón para ver usuarios registrados */}
+      {/* Botón para ver usuarios registrados */}
       <div className="mb-6">
         <button
           onClick={() => setShowUsersModal(true)}
@@ -336,6 +371,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ events, onDelete
                 className="bg-red-600 px-4 py-2 rounded hover:bg-red-700 text-white"
               >
                 Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal enviar anuncio */}
+      {showAnnouncementModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
+          <div className="bg-gray-800 p-6 rounded-lg w-full max-w-md">
+            <h2 className="text-2xl font-bold mb-4">Nuevo Anuncio</h2>
+            <input
+              type="text"
+              placeholder="Título"
+              className="w-full mb-3 p-2 rounded bg-gray-700 text-white outline-none"
+              value={announcementTitle}
+              onChange={(e) => setAnnouncementTitle(e.target.value)}
+            />
+            <textarea
+              placeholder="Mensaje del anuncio"
+              className="w-full mb-3 p-2 rounded bg-gray-700 text-white outline-none h-32"
+              value={announcementMessage}
+              onChange={(e) => setAnnouncementMessage(e.target.value)}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowAnnouncementModal(false)}
+                className="bg-gray-600 px-4 py-2 rounded hover:bg-gray-700"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSendAnnouncement}
+                className="bg-yellow-600 px-4 py-2 rounded hover:bg-yellow-700 text-white"
+              >
+                Enviar
               </button>
             </div>
           </div>
