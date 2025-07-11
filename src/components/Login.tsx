@@ -187,7 +187,7 @@ export const Login = ({ onLogin, onRegister }: any) => {
                   <>
                     <input
                       type="text"
-                      placeholder="Nombre completo"
+                      placeholder="Nombre y apellido"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
@@ -203,10 +203,8 @@ export const Login = ({ onLogin, onRegister }: any) => {
                     <input
                       type="text"
                       placeholder="@instagram"
-                      value={instagram}
-                      onChange={(e) =>
-                        setInstagram(
-                          e.target.value.startsWith('@') ? e.target.value : `@${e.target.value}`
+                      value={instagram.replace('@', '')}
+                      onChange={(e) => setInstagram(`@${e.target.value}`
                         )
                       }
                       required

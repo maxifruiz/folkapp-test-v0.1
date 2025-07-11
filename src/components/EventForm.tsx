@@ -239,7 +239,7 @@ export function EventForm({ onSubmit, currentUser, initialData, isEditing = fals
             name="city"
             value={formData.city}
             onChange={handleInputChange}
-            placeholder="Seleccionar ciudad"
+            placeholder="Indicar ciudad"
             className="w-full border rounded-lg px-4 py-2 mt-1"
           />
           {errors.city && <p className="text-red-600 text-sm mt-1">{errors.city}</p>}
@@ -319,6 +319,7 @@ export function EventForm({ onSubmit, currentUser, initialData, isEditing = fals
         <label className="block text-sm font-medium">Descripción *</label>
         <textarea
           name="description"
+          placeholder="Breve descripcion del evento" 
           value={formData.description}
           onChange={handleInputChange}
           rows={5}
