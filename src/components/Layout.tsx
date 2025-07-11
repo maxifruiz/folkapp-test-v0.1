@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { CalendarCheck, Plus, BookImage, User, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import AdminAnnouncements from './AdminAnnouncements';
+import LegalModal from "./LegalModal";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -34,6 +35,10 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
   const [shouldShake, setShouldShake] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+
 
   // Popup arriba notificaciones nuevas
   const [newNotiPopupVisible, setNewNotiPopupVisible] = useState(false);
@@ -561,8 +566,9 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</main>
 
         {/* Footer */}
-        <footer className="bg-folkiRed text-white border-t border-folkiAmber mt-12 pt-8 pb-10">
+        <footer className="bg-folkiRed text-white border-t border-folkiAmber mt-12 pt-8 pb-10 text-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Logo + frase */}
             <div className="text-center space-y-4">
               <div className="flex justify-center items-center overflow-visible">
                 <div className="logo-container">
@@ -574,9 +580,54 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                 La primer cartelera del Folklore Argentino. Conectando eventos, creando comunidad.
               </p>
             </div>
+
+            {/* Línea superior: links legales */}
+            <div className="mt-8 border-t border-folkiAmber pt-4">
+              <div className="flex justify-between items-center text-xs sm:text-sm text-folkiCream">
+                <button
+                  onClick={() => setShowTerms(true)}
+                  className="underline hover:text-folkiAmber transition"
+                  type="button"
+                >
+                  Términos y condiciones
+                </button>
+
+                <button
+                  onClick={() => setShowPrivacy(true)}
+                  className="underline hover:text-folkiAmber transition"
+                  type="button"
+                >
+                  Política de privacidad
+                </button>
+              </div>
+
+              {/* Línea inferior: derechos + soporte */}
+              <div className="mt-4 text-center text-xs sm:text-sm text-folkiCream space-y-1">
+              <div>© 2025 Folki App. Todos los derechos reservados.</div>
+               <div>
+                  Soporte:{' '}
+                <a
+                   href="mailto:eventos.folki@gmail.com"
+                   className="underline hover:text-folkiAmber"
+                >
+                 eventos.folki@gmail.com 
+                </a>
+              </div> 
+            </div>
           </div>
-        </footer>
-      </div>
-    </div>
-  );
+        </div>
+      </footer>
+    </div> <LegalModal
+              open={showTerms}   
+              onClose={() => setShowTerms(false)}
+              type="terminos"
+            />
+            <LegalModal
+              open={showPrivacy}   
+              onClose={() => setShowPrivacy(false)}
+              type="privacidad"
+            />
+   </div>
+);
 }
+
