@@ -47,7 +47,8 @@ export type EventType =
   | 'recital'
   | 'clase'
   | 'taller'
-  | 'encuentro';
+  | 'convocatoria'
+  | 'funcion';
 
 export interface Province {
   id: string;
