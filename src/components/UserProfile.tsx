@@ -4,7 +4,8 @@ import { supabase } from '../lib/supabaseClient';
 import { useEvents } from '../hooks/useEvents';
 import { EventCard } from '../components/EventCard';
 import { ChevronDown, ChevronUp, Edit2, X, Trash2 } from 'lucide-react';
-import { EventForm } from '../components/EventForm'; // Asegurate que la ruta sea correcta
+import { EventForm } from '../components/EventForm';
+import {CommunityModal} from '../components/CommunityModal'; // el componente nuevo
 
 const ImageModal = ({ imageUrl, onClose }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -51,11 +52,11 @@ export const UserProfile = () => {
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-
-  // Estado para eliminar evento
+  const [communityModalOpen, setCommunityModalOpen] = useState(false);
   const [deletingEvent, setDeletingEvent] = useState(null);
   const [deletingLoading, setDeletingLoading] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+
 
   useEffect(() => {
     if (user) fetchProfileData();
@@ -90,32 +91,19 @@ export const UserProfile = () => {
     const filePath = `${user.id}/${fileName}`;
 
     try {
-      const { data: listData, error: listError } = await supabase.storage.from('avatars').list(user.id);
-      if (listError) throw listError;
-
+      const { data: listData } = await supabase.storage.from('avatars').list(user.id);
       const oldFiles = listData?.filter(f => f.name.startsWith('avatar_')) || [];
       const oldPaths = oldFiles.map(f => `${user.id}/${f.name}`);
 
       if (oldPaths.length) {
-        const { error: removeError } = await supabase.storage.from('avatars').remove(oldPaths);
-        if (removeError) console.warn('Error eliminando archivos viejos:', removeError);
+        await supabase.storage.from('avatars').remove(oldPaths);
       }
 
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file, { upsert: true });
-
-      if (uploadError) throw uploadError;
-
+      await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
       const publicUrl = `${data.publicUrl}?t=${timestamp}`;
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar: publicUrl })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
+      await supabase.from('profiles').update({ avatar: publicUrl }).eq('id', user.id);
 
       setAvatarUrl(publicUrl);
       setProfileData((prev) => ({ ...prev, avatar: publicUrl }));
@@ -126,86 +114,71 @@ export const UserProfile = () => {
     }
   }
 
-  const myEvents = Array.isArray(allEvents)
-    ? allEvents.filter((e) => e.organizer_id === user?.id)
-    : [];
+  const myEvents = Array.isArray(allEvents) ? allEvents.filter(e => e.organizer_id === user?.id) : [];
 
   const handleUpdateEvent = async (updatedEventData) => {
     setFormSubmitting(true);
     setFormError('');
     try {
-      const { error } = await supabase
-        .from('events')
-        .update({
-          title: updatedEventData.title,
-          description: updatedEventData.description,
-          type: updatedEventData.type,
-          province: updatedEventData.province,
-          city: updatedEventData.city,
-          address: updatedEventData.address,
-          date: updatedEventData.date,
-          is_free: updatedEventData.is_free,
-          price_anticipada: updatedEventData.price_anticipada,
-          price_general: updatedEventData.price_general,
-          multimedia: updatedEventData.multimedia,
-        })
-        .eq('id', editingEvent.id);
+      const { error } = await supabase.from('events').update({
+        title: updatedEventData.title,
+        description: updatedEventData.description,
+        type: updatedEventData.type,
+        province: updatedEventData.province,
+        city: updatedEventData.city,
+        address: updatedEventData.address,
+        date: updatedEventData.date,
+        is_free: updatedEventData.is_free,
+        price_anticipada: updatedEventData.price_anticipada,
+        price_general: updatedEventData.price_general,
+        multimedia: updatedEventData.multimedia,
+      }).eq('id', editingEvent.id);
 
       if (error) throw error;
-
-      if (refreshEvents) {
-        await refreshEvents();
-      }
+      if (refreshEvents) await refreshEvents();
 
       setEditingEvent(null);
       setShowSuccessModal(true);
     } catch (error) {
       setFormError('Error actualizando evento, intentá nuevamente.');
-      console.error(error);
     } finally {
       setFormSubmitting(false);
     }
   };
 
   const handleDeleteEvent = async () => {
-  if (!deletingEvent) return;
-  setDeletingLoading(true);
-  setDeleteError('');
-  try {
-    const { error } = await supabase
-      .from('events')
-      .delete()
-      .eq('id', deletingEvent.id);
-
-    if (error) {
+    if (!deletingEvent) return;
+    setDeletingLoading(true);
+    setDeleteError('');
+    try {
+      const { error } = await supabase.from('events').delete().eq('id', deletingEvent.id);
+      if (error) setDeleteError('Error eliminando evento, intentá nuevamente.');
+      else {
+        setDeletingEvent(null);
+        window.location.reload();
+      }
+    } catch {
       setDeleteError('Error eliminando evento, intentá nuevamente.');
-    } else {
-      setDeletingEvent(null); // cerrar modal
-      window.location.reload(); // recarga la página
+    } finally {
+      setDeletingLoading(false);
     }
-  } catch (error) {
-    setDeleteError('Error eliminando evento, intentá nuevamente.');
-  } finally {
-    setDeletingLoading(false);
-  }
-};
-
+  };
 
   if (!user || !profileData) return null;
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 max-w-md mx-auto mt-10 text-neutral-800">
-      <h2 className="text-2xl font-bold text-red-600 mb-4 select-none">Mi Perfil</h2>
+    <div className="bg-folkiCream rounded-2xl shadow-xl p-6 max-w-2xl mx-auto mt-10 text-folkiRed">
+      <h2 className="text-3xl font-extrabold mb-6 text-center">Mi Perfil</h2>
 
-      <div className="flex items-center justify-center space-x-6 mb-6">
+      <div className="flex items-center justify-center gap-6 mb-6">
         <div
-          className="relative w-24 h-24 rounded-full overflow-hidden border-4 border-red-200 bg-gray-300 flex items-center justify-center cursor-pointer hover:brightness-90 transition"
+          className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-folkiAmber bg-gray-200 cursor-pointer hover:brightness-90"
           onClick={() => avatarUrl && setShowFullImage(true)}
         >
           {avatarUrl ? (
             <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
           ) : (
-            <span className="text-gray-500 select-none">avatar</span>
+            <span className="text-gray-500">avatar</span>
           )}
           {uploading && (
             <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center text-white font-semibold">
@@ -213,12 +186,8 @@ export const UserProfile = () => {
             </div>
           )}
         </div>
-
         <div>
-          <label
-            htmlFor="avatarUpload"
-            className="cursor-pointer px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition select-none"
-          >
+          <label htmlFor="avatarUpload" className="cursor-pointer px-4 py-2 bg-folkiRed text-folkiCream rounded-xl hover:bg-folkiAmber transition">
             Cambiar foto
           </label>
           <input
@@ -232,33 +201,36 @@ export const UserProfile = () => {
         </div>
       </div>
 
-      <div className="space-y-2 mb-6 select-text">
+      <div className="space-y-2 mb-6">
         <p><strong>Nombre completo:</strong> {profileData.full_name || 'No disponible'}</p>
         <p><strong>Email:</strong> {user.email}</p>
         <p><strong>Instagram:</strong> {profileData.instagram || 'No cargado'}</p>
         <p><strong>Fecha de nacimiento:</strong> {profileData.birthdate || 'No cargada'}</p>
         <p><strong>Rol:</strong> {profileData.role === 'admin' ? 'Administrador' : 'Usuario'}</p>
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-neutral-600">
           Miembro desde {new Date(profileData.created_at || user.created_at).toLocaleDateString('es-AR')}
         </p>
       </div>
 
+    {/* BOTÓN COMUNIDAD */}
+    <button
+      onClick={() => setCommunityModalOpen(true)}
+      className="mb-4 w-full px-5 py-3 bg-folkiAmber text-folkiRed rounded-xl font-semibold hover:bg-folkiRed hover:text-folkiCream transition"
+    >
+      Comunidad
+    </button>      
+
       <button
         onClick={() => setEventsExpanded((v) => !v)}
-        className="flex items-center justify-between w-full bg-red-600 hover:bg-red-700 transition text-white font-semibold rounded-lg px-4 py-3 mb-4 select-none"
-        aria-expanded={eventsExpanded}
-        aria-controls="user-events-list"
+        className="w-full flex items-center justify-between bg-folkiRed text-folkiCream hover:bg-folkiAmber hover:text-folkiRed transition font-semibold rounded-xl px-5 py-3 mb-4"
       >
         <span>Eventos activos ({myEvents.length})</span>
-        {eventsExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+        {eventsExpanded ? <ChevronUp /> : <ChevronDown />}
       </button>
 
-      <div
-        id="user-events-list"
-        className={`transition-opacity duration-500 ease-in-out ${eventsExpanded ? 'opacity-100 block' : 'opacity-0 hidden'}`}
-      >
+      <div className={`${eventsExpanded ? 'block' : 'hidden'} transition-all duration-500`}>
         {myEvents.length === 0 ? (
-          <p className="text-center text-gray-600 mb-4 select-text">No tenés eventos activos.</p>
+          <p className="text-center text-gray-600 mb-4">No tenés eventos activos.</p>
         ) : (
           <div className="grid gap-4">
             {myEvents.map((event) => (
@@ -271,17 +243,13 @@ export const UserProfile = () => {
                 />
                 <button
                   onClick={() => setEditingEvent(event)}
-                  className="absolute top-2 right-12 bg-red-600 hover:bg-red-700 text-white rounded-full p-2 shadow-lg transition select-none"
-                  title="Editar evento"
-                  aria-label={`Editar evento ${event.title}`}
+                  className="absolute top-2 right-12 bg-folkiRed text-folkiCream hover:bg-folkiAmber hover:text-folkiRed p-2 rounded-full shadow"
                 >
                   <Edit2 className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => setDeletingEvent(event)}
-                  className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-2 shadow-lg transition select-none"
-                  title="Eliminar evento"
-                  aria-label={`Eliminar evento ${event.title}`}
+                  className="absolute top-2 right-2 bg-folkiRed text-folkiCream hover:bg-folkiAmber hover:text-folkiRed p-2 rounded-full shadow"
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>
@@ -292,25 +260,18 @@ export const UserProfile = () => {
       </div>
 
       <button
-        onClick={async () => {
-          const success = await logout();
-          if (success) window.location.reload();
-        }}
-        className="mt-6 w-full px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition select-none"
+        onClick={async () => { const success = await logout(); if (success) window.location.reload(); }}
+        className="mt-6 w-full px-6 py-3 bg-folkiRed text-folkiCream rounded-xl hover:bg-folkiAmber hover:text-folkiRed transition"
       >
         Cerrar sesión
       </button>
 
-      {showFullImage && avatarUrl && (
-        <ImageModal imageUrl={avatarUrl} onClose={() => setShowFullImage(false)} />
-      )}
+      {showFullImage && avatarUrl && <ImageModal imageUrl={avatarUrl} onClose={() => setShowFullImage(false)} />}
 
       {editingEvent && (
         <div
           className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4 overflow-auto"
           onClick={() => !formSubmitting && setEditingEvent(null)}
-          aria-modal="true"
-          role="dialog"
         >
           <div
             className="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto"
@@ -319,7 +280,6 @@ export const UserProfile = () => {
             <button
               className="absolute top-4 right-4 text-gray-700 hover:text-black"
               onClick={() => !formSubmitting && setEditingEvent(null)}
-              aria-label="Cerrar modal de edición"
             >
               <X className="w-6 h-6" />
             </button>
@@ -339,39 +299,43 @@ export const UserProfile = () => {
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6 text-center">
-            <h2 className="text-2xl font-bold text-red-600 mb-4">Evento actualizado</h2>
+            <h2 className="text-2xl font-bold text-folkiRed mb-4">Evento actualizado</h2>
             <p className="text-gray-700 mb-6">Tu evento fue editado con éxito.</p>
             <button
               onClick={() => window.location.reload()}
-              className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition"
+              className="bg-folkiRed hover:bg-folkiAmber text-folkiCream px-6 py-2 rounded-lg transition"
             >
               Aceptar
             </button>
           </div>
         </div>
       )}
+      
+      {/* MODAL COMUNIDAD */}
+      {communityModalOpen && (
+        <CommunityModal
+          onClose={() => setCommunityModalOpen(false)}
+          userId={user.id}
+        />
+      )}      
 
       {deletingEvent && (
         <div
           className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
           onClick={() => !deletingLoading && setDeletingEvent(null)}
-          aria-modal="true"
-          role="dialog"
         >
           <div
             className="bg-white rounded-xl shadow-lg w-full max-w-sm p-6 text-center"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-2xl font-bold text-red-600 mb-4">Eliminar evento</h2>
-            <p className="text-gray-700 mb-6">
-              ¿Estás seguro que querés eliminar este evento? Esta acción no se puede deshacer.
-            </p>
+            <h2 className="text-2xl font-bold text-folkiRed mb-4">Eliminar evento</h2>
+            <p className="text-gray-700 mb-6">¿Estás seguro que querés eliminar este evento? Esta acción no se puede deshacer.</p>
             {deleteError && <p className="text-red-600 mb-4">{deleteError}</p>}
             <div className="flex justify-center space-x-4">
               <button
                 onClick={handleDeleteEvent}
                 disabled={deletingLoading}
-                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition"
+                className="bg-folkiRed hover:bg-folkiAmber text-folkiCream px-6 py-2 rounded-lg transition"
               >
                 {deletingLoading ? 'Eliminando...' : 'Sí, eliminar'}
               </button>
