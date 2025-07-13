@@ -170,24 +170,34 @@ export function EventCard({
           />
         )}
 
-        <div className="p-4 space-y-0.5 pb-2 bg-white">
-          <h2 className="text-lg font-semibold text-gray-800">
+        <div className="p-1 space-y-0.5 pb-2 bg-white">
+          <h2 className="text-base font-semibold text-gray-800">
             {truncateTitle(event.title, 30)}
           </h2>
+        <div className="text-xs text-gray-600">
           <div className="text-xs text-gray-600">
-            🗓️ <strong>Fecha:</strong>{' '}
-            {new Date(event.date).toLocaleString('es-AR', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-              hour: 'numeric',
-              minute: '2-digit',
-            })}
+            🗓️ <strong></strong>{' '}
+            {(() => {
+              const d = new Date(event.date);
+              const dayOfWeek = d.toLocaleString('es-AR', { weekday: 'long' }); 
+              const day = d.getDate().toString().padStart(2, '0');
+              const month = (d.getMonth() + 1).toString().padStart(2, '0');
+              const year = d.getFullYear().toString().slice(-2); 
+              return `${dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1)} ${day}/${month}/${year}`;
+            })()}
           </div>
+          <div className="flex items-center mt-1"> 
+            ⏰ <strong></strong>
+            {(() => {
+              const d = new Date(event.date);
+              const hour = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit',  hour12: false }); 
+              return `${hour} Hs`;
+            })()}
+          </div>
+        </div>
           {(event.province || event.city) && (
             <div className="text-xs text-gray-600">
-              🗺️ <strong>Ubicación:</strong>{' '}
+              🗺️ <strong></strong>{' '}
               {[event.province, event.city].filter(Boolean).join(' - ')}
             </div>
           )}
