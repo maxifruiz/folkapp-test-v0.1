@@ -23,7 +23,6 @@ interface UserSearchModalProps {
   onClose: () => void;
 }
 
-// Definición de colores por tipo de evento (igual que en EventCard)
 const eventTypeColors: Record<string, string> = {
   peña: 'bg-red-100 text-red-800',
   certamen: 'bg-purple-100 text-purple-800',
@@ -41,15 +40,64 @@ export default function UserSearchModal({ onClose }: UserSearchModalProps) {
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [userEvents, setUserEvents] = useState<Event[]>([]);
   const [imageOpen, setImageOpen] = useState(false);
+  const [isMember, setIsMember] = useState(false);
+  const [joinAnimation, setJoinAnimation] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+
+  const session = supabase.auth.getSession().then(({ data }) => data.session);
+
+  useEffect(() => {
+    const checkCommunity = async () => {
+      const currentSession = await supabase.auth.getSession();
+      const currentUserId = currentSession.data.session?.user?.id;
+      if (!selectedUser || !currentUserId) return;
+
+      const { data } = await supabase
+        .from('communities')
+        .select('id')
+        .eq('user_id', currentUserId)
+        .eq('community_leader_id', selectedUser.id)
+        .maybeSingle();
+
+      setIsMember(!!data);
+    };
+
+    checkCommunity();
+  }, [selectedUser]);
+
+  const handleJoin = async () => {
+    const currentSession = await supabase.auth.getSession();
+    const currentUserId = currentSession.data.session?.user?.id;
+    if (!selectedUser || !currentUserId) return;
+
+    const { error } = await supabase.from('communities').insert({
+      user_id: currentUserId,
+      community_leader_id: selectedUser.id,
+    });
+
+    if (!error) {
+      setIsMember(true);
+      setJoinAnimation(true);
+      setTimeout(() => setJoinAnimation(false), 1200);
+    }
+  };
+
+  const handleLeave = async () => {
+    const currentSession = await supabase.auth.getSession();
+    const currentUserId = currentSession.data.session?.user?.id;
+    if (!selectedUser || !currentUserId) return;
+
+    const { error } = await supabase
+      .from('communities')
+      .delete()
+      .match({ user_id: currentUserId, community_leader_id: selectedUser.id });
+
+    if (!error) setIsMember(false);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        !imageOpen &&
-        modalRef.current &&
-        !modalRef.current.contains(event.target as Node)
-      ) {
+      if (!imageOpen && modalRef.current && !modalRef.current.contains(event.target as Node)) {
         onClose();
       }
     };
@@ -76,13 +124,7 @@ export default function UserSearchModal({ onClose }: UserSearchModalProps) {
       .select('id, full_name, avatar, instagram')
       .ilike('full_name', `%${query}%`);
 
-    if (error) {
-      console.error('Error al buscar usuarios:', error);
-    }
-
-    if (!error && data) {
-      setResults(data);
-    }
+    if (!error && data) setResults(data);
   };
 
   const fetchUserEvents = async (userId: string) => {
@@ -179,21 +221,51 @@ export default function UserSearchModal({ onClose }: UserSearchModalProps) {
                     alt={selectedUser.full_name}
                     className="w-12 h-12 rounded-full border-2 border-folkiRed object-cover cursor-pointer"
                   />
-                  <div>
-                    <p className="text-base font-bold text-folkiRed leading-none">{selectedUser.full_name}</p>
-                    {selectedUser.instagram && (
-                      <p className="text-xs text-folkiRed">
-                        <span className="font-semibold mr-1">Insta :</span>
-                        <a
-                          href={`https://instagram.com/${selectedUser.instagram.replace('@', '')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:text-folkiAmber transition underline"
-                        >
-                          {selectedUser.instagram}
-                        </a>
-                      </p>
-                    )}
+                  <div className="flex justify-between items-center w-full gap-2 flex-wrap">
+                    <div>
+                      <p className="text-base font-bold text-folkiRed leading-none">{selectedUser.full_name}</p>
+                      {selectedUser.instagram && (
+                        <p className="text-xs text-folkiRed">
+                          <span className="font-semibold mr-1">Insta :</span>
+                          <a
+                            href={`https://instagram.com/${selectedUser.instagram.replace('@', '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-folkiAmber transition underline"
+                          >
+                            {selectedUser.instagram}
+                          </a>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Botón de comunidad */}
+                    <div className="relative flex flex-col items-center gap-1">
+                      <div className="text-[10px] font-semibold text-folkiRed">
+                        {isMember ? 'Dejar comunidad' : 'Unite a su comunidad'}
+                      </div>
+                        
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={isMember ? handleLeave : handleJoin}
+                        className={`text-sm font-semibold px-3 py-1 rounded-full transition duration-300 shadow-sm ${
+                          isMember
+                            ? 'bg-gray-300 text-folkiRed'
+                            : 'bg-folkiRed text-folkiCream hover:bg-folkiAmber hover:text-folkiRed'
+                        }`}
+                      >
+                        {isMember ? 'Dejar' : 'Unirme'}
+                      </motion.button>
+                      {joinAnimation && (
+                        <motion.div
+                          className="absolute inset-0 rounded-full border-2 border-folkiAmber opacity-70 pointer-events-none"
+                          initial={{ scale: 1, opacity: 0.8 }}
+                          animate={{ scale: 2.2, opacity: 0 }}
+                          transition={{ duration: 0.8, ease: 'easeOut' }}
+                        />
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -204,7 +276,6 @@ export default function UserSearchModal({ onClose }: UserSearchModalProps) {
                   <ul className="space-y-2">
                     {userEvents.map((event) => {
                       const colors = eventTypeColors[event.type] || 'bg-gray-100 text-gray-800';
-                      // Extraigo el color para el borde izquierdo, ejemplo: 'red' de 'bg-red-100'
                       const borderColor = colors.split(' ')[0].replace('bg-', '').replace('-100', '');
 
                       return (
@@ -244,7 +315,6 @@ export default function UserSearchModal({ onClose }: UserSearchModalProps) {
         </motion.div>
       </div>
 
-      {/* Modal imagen grande */}
       <AnimatePresence>
         {imageOpen && selectedUser && (
           <motion.div
@@ -255,10 +325,7 @@ export default function UserSearchModal({ onClose }: UserSearchModalProps) {
             className="fixed inset-0 z-[9999] bg-black bg-opacity-90 flex items-center justify-center p-4"
             onClick={() => setImageOpen(false)}
           >
-            <motion.div
-              onClick={(e) => e.stopPropagation()}
-              className="relative"
-            >
+            <motion.div onClick={(e) => e.stopPropagation()} className="relative">
               <motion.img
                 src={selectedUser.avatar || '/default-avatar.png'}
                 alt={selectedUser.full_name}

@@ -28,6 +28,17 @@ export default {
         'fade-up': 'fadeUp 0.7s ease-out forwards',
         'fade-left': 'fadeLeft 0.7s ease-out forwards',
       },
+      // Nuevas clases personalizadas
+      spacing: {
+        'btn-px': '0.75rem',  // para px padding más claro si querés
+      },
+      borderRadius: {
+        'btn-rounded': '9999px', // botón full rounded
+      },
+      boxShadow: {
+        'btn-shadow': '0 2px 8px rgba(0,0,0,0.15)', // sombra sutil botón
+      },
+      // Puedes usar plugin para componentes, o en CSS con @apply (recomendado para combos)
     },
   },
   plugins: [
