@@ -223,7 +223,7 @@ export default function UserSearchModal({ onClose }: UserSearchModalProps) {
                   />
                   <div className="flex justify-between items-center w-full gap-2 flex-wrap">
                     <div>
-                      <p className="text-base font-bold text-folkiRed leading-none">{selectedUser.full_name}</p>
+                      <p className="text-sm font-bold text-folkiRed leading-none">{selectedUser.full_name}</p>
                       {selectedUser.instagram && (
                         <p className="text-xs text-folkiRed">
                           <span className="font-semibold mr-1">Insta :</span>
