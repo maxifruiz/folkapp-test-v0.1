@@ -523,9 +523,13 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                               </div>
                             )}
                             <div className="noti-text">
-                              {n.type === 'like'
-                                ? `🧡 ${n.from_user?.full_name} le dio like a ${n.event?.type} "${n.event?.title}"`
-                                : `🗓️ ${n.from_user?.full_name} indicó que asistirá a ${n.event?.type} "${n.event?.title}"`}
+                              {n.type === 'like' ? (
+                                `🧡 ${n.from_user?.full_name} le dio like a ${n.event?.type} "${n.event?.title}"`
+                              ) : n.type === 'attend' ? (
+                                `🎟️ ${n.from_user?.full_name} indicó que asistirá a ${n.event?.type} "${n.event?.title}"`
+                              ) : n.type === 'follow' ? (
+                                `👥 ${n.from_user?.full_name} se unió a tu red`
+                              ) : null}
                             </div>
                             {!n.leido && (
                               <button

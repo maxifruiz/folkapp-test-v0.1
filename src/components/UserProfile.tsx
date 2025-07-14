@@ -260,8 +260,12 @@ export const UserProfile = () => {
       </div>
 
       <button
-        onClick={async () => { const success = await logout(); if (success) window.location.reload(); }}
-        className="mt-6 w-full px-6 py-3 bg-folkiRed text-folkiCream rounded-xl hover:bg-folkiAmber hover:text-folkiRed transition"
+        type="button"
+        onClick={async () => {
+          const success = await logout();
+          if (success) window.location.reload();
+        }}
+        className="mt-6 w-full px-6 py-3 bg-folkiRed text-folkiCream rounded-xl transition"
       >
         Cerrar sesión
       </button>
