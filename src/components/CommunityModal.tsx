@@ -6,6 +6,7 @@ import 'reactflow/dist/style.css';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../hooks/useAuth';
+import UserProfileModal from './UserProfileModal';
 
 interface CommunityModalProps {
   userId: string;
@@ -460,19 +461,20 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
               id: userNodeId,
               data: {
                 label: (
-                  <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedUser(profilesMap[like.user_id]);
+                    }}
+                    className="flex items-center gap-2 text-left hover:text-folkiAmber"
+                  >
                     <img
-                      src={
-                        profilesMap[like.user_id]?.avatar ||
-                        '/default-avatar.png'
-                      }
+                      src={profilesMap[like.user_id]?.avatar ||'/default-avatar.png'}
                       alt={profilesMap[like.user_id]?.full_name}
                       className="w-5 h-5 rounded-full border border-folkiRed object-cover"
                     />
-                    <span className="text-xs">
-                      {profilesMap[like.user_id]?.full_name || 'user'}
-                    </span>
-                  </div>
+                    <span className="text-xs">{profilesMap[like.user_id]?.full_name || 'user'}</span>
+                    </button>
                 ),
               },
               position: { x: likesX, y: eventY + 40 + j * 40 },
@@ -498,19 +500,20 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
               id: userNodeId,
               data: {
                 label: (
-                  <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedUser(profilesMap[att.user_id]);
+                    }}
+                    className="flex items-center gap-2 text-left hover:text-folkiAmber"
+                  >
                     <img
-                      src={
-                        profilesMap[att.user_id]?.avatar ||
-                        '/default-avatar.png'
-                      }
+                      src={profilesMap[att.user_id]?.avatar ||'/default-avatar.png'}
                       alt={profilesMap[att.user_id]?.full_name}
                       className="w-5 h-5 rounded-full border border-folkiRed object-cover"
                     />
-                    <span className="text-xs">
-                      {profilesMap[att.user_id]?.full_name || 'user'}
-                    </span>
-                  </div>
+                    <span className="text-xs">{profilesMap[att.user_id]?.full_name || 'user'}</span>
+                    </button>
                 ),
               },
               position: { x: attendsX, y: eventY + 40 + k * 40 },
@@ -589,30 +592,10 @@ export const CommunityModal: React.FC<CommunityModalProps> = ({
 
             {/* Sidebar */}
             {selectedUser && (
-              <div className="absolute top-4 right-4 w-[300px] bg-folkiCream border border-folkiAmber rounded-lg p-3 shadow-md z-50">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={selectedUser.avatar || '/default-avatar.png'}
-                    alt={selectedUser.full_name}
-                    className="w-12 h-12 rounded-full border-2 border-folkiRed object-cover"
-                  />
-                  <div>
-                    <p className="text-sm font-bold text-folkiRed leading-none">
-                      {selectedUser.full_name}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-3 text-right">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setSelectedUser(null)}
-                    className="bg-folkiRed text-white px-3 py-1 rounded-full text-sm"
-                  >
-                    Cerrar
-                  </motion.button>
-                </div>
-              </div>
+              <UserProfileModal
+                userId={selectedUser.id}
+                onClose={() => setSelectedUser(null)}
+              />
             )}
           </div>
         )}
