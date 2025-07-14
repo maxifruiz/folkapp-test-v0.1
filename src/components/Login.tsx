@@ -187,7 +187,7 @@ export const Login = ({ onLogin, onRegister }: any) => {
                   <>
                     <input
                       type="text"
-                      placeholder="Nombre y apellido"
+                      placeholder="Nombre y apellido (visible en la app)"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
@@ -195,6 +195,7 @@ export const Login = ({ onLogin, onRegister }: any) => {
                     />
                     <input
                       type="date"
+                      placeholder="Fecha de nacimiento "
                       value={birthdate}
                       onChange={(e) => setBirthdate(e.target.value)}
                       required
@@ -202,7 +203,7 @@ export const Login = ({ onLogin, onRegister }: any) => {
                     />
                     <input
                       type="text"
-                      placeholder="@instagram"
+                      placeholder="usuario @instagram (sin arroba)"
                       value={instagram.replace('@', '')}
                       onChange={(e) => setInstagram(`@${e.target.value}`
                         )
