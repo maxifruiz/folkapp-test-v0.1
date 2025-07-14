@@ -3,6 +3,27 @@ import { createPortal } from 'react-dom';
 import { supabase } from '../lib/supabaseClient'; // Ajustá la ruta si es necesario
 import toast from 'react-hot-toast';
 
+const parseMessage = (msg: string) => {
+  const instaRegex = /@([a-zA-Z0-9._]{1,30})/g;
+  let html = msg.replace(
+    instaRegex,
+    (match, user) => {
+      if (user.startsWith('.') || user.endsWith('.') || user.includes('..')) return match; // evitar links malformados
+      return `<a href="https://instagram.com/${user}" target="_blank" rel="noopener noreferrer" style="color:#1d4ed8;text-decoration:underline">@${user}</a>`;
+    }
+  );
+
+  html = html.replace(
+    /(?:\+?549\d{10})/g,
+    (m) => {
+      const normalized = m.startsWith('+') ? m.slice(1) : m;
+      return `<a href="https://wa.me/${normalized}" target="_blank" rel="noopener noreferrer" style="color:#15803d;text-decoration:underline">${m}</a>`;
+    }
+  );
+
+  return html;
+};
+
 interface Announcement {
   id: string;
   title: string;
@@ -291,10 +312,12 @@ const AdminAnnouncements = ({ userId }: AdminAnnouncementsProps) => {
               </button>
             </div>
             <div
-              dangerouslySetInnerHTML={{ __html: openedAnnouncement.message }}
+              dangerouslySetInnerHTML={{
+                __html: parseMessage(openedAnnouncement.message)
+              }}
               style={{ 
                 lineHeight: '1.5', 
-                whiteSpace: 'pre-wrap' // para respetar saltos de línea y espacios
+                whiteSpace: 'pre-wrap' 
               }}
             />
           </div>
