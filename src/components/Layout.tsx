@@ -59,7 +59,7 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
       .from('notifications')
       .select(`
         id, type, leido, from_user_id, created_at,
-        event:events (title, type),
+        event:events(title, type),
         from_user:from_user_id (full_name, avatar)
       `)
       .eq('user_id', user.id)
@@ -523,13 +523,27 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                               </div>
                             )}
                             <div className="noti-text">
-                              {n.type === 'like' ? (
-                                `🧡 ${n.from_user?.full_name} le dio like a ${n.event?.type} "${n.event?.title}"`
-                              ) : n.type === 'attend' ? (
-                                `🎟️ ${n.from_user?.full_name} indicó que asistirá a ${n.event?.type} "${n.event?.title}"`
-                              ) : n.type === 'follow' ? (
-                                `👥 ${n.from_user?.full_name} se unió a tu red`
-                              ) : null}
+                              {(() => {
+                                const name = n.from_user?.full_name ?? 'Alguien';
+                                const avatar = n.from_user?.avatar;
+                                const eventType = n.event?.type ?? 'un evento';
+                                const eventTitle = n.event?.title ?? '';
+
+                              switch (n.type) {
+                                    case 'like':
+                                      return `🧡 ${name} le dio like a ${eventType} "${eventTitle}"`;
+                                    case 'attendance':
+                                    case 'asistire':
+                                      return `🗓️ ${name} indicó que asistira a ${eventType} "${eventTitle}"`;
+                                    case 'follow':
+                                      return `👥 ${name} se unió a tu comunidad`;
+                                    case 'new_event':
+                                      return `📢 ${name} publicó un nuevo evento: "${eventTitle}"`;
+                                    default:
+                                      return null;
+                                  }
+                                })()}
+                              
                             </div>
                             {!n.leido && (
                               <button
