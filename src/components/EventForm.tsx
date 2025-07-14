@@ -62,12 +62,15 @@ export function EventForm({ onSubmit, currentUser, initialData, isEditing = fals
       setErrors(prev => ({ ...prev, files: 'Solo se permite un archivo' }));
       return;
     }
-    const validFiles = selectedFiles.filter(file => file.type.startsWith('image/') && file.size <= 20 * 1024 * 1024);
-    if (validFiles.length !== selectedFiles.length) {
-      setErrors(prev => ({ ...prev, files: 'Solo se permiten imágenes (máx. 20MB)' }));
-      return;
-    }
+    const validFiles = selectedFiles.filter(file => {
+      const isValidSize = file.size <= 20 * 1024 * 1024; // máximo 20MB
+      const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'];
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const isValidExtension = ext && allowedExtensions.includes(ext);
+      const isValidMime = file.type.startsWith('image/');
 
+      return isValidSize && (isValidMime || isValidExtension);
+    });
     if (validFiles.length === 1) {
       setIsImageLoading(true);
       setImageLoadMessage('Cargando archivo...');
@@ -330,7 +333,7 @@ export function EventForm({ onSubmit, currentUser, initialData, isEditing = fals
 
       <div>
         <label className="block text-sm font-medium">Foto del evento *</label>
-        <input type="file" accept="image/*" onChange={handleFileChange} className="mt-1" />
+        <input type="file" accept="image/*,.heic,.heif" onChange={handleFileChange} className="mt-1" />
         {errors.files && <p className="text-red-600 text-sm mt-1">{errors.files}</p>}
         <div className="mt-2 flex gap-4 flex-wrap items-center">
           {/* Preview existing images */}
