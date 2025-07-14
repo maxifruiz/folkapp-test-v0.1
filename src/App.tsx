@@ -12,6 +12,7 @@ import { Music2, Calendar as CalendarIcon, ChevronDown, ChevronUp } from 'lucide
 import { UserProfile } from './components/UserProfile';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ResetPassword } from './components/ResetPassword';  // <-- import ResetPassword
+import  Market  from './components/Market';
 
 function App() {
   const { user, loading, login, register, logout } = useAuth();
@@ -31,7 +32,7 @@ function App() {
 
   // agregué 'resetpassword' en el tipo
   const [currentPage, setCurrentPage] = useState<
-    'cartelera' | 'calendario' | 'publicar' | 'perfil' | 'admin' | 'resetpassword'
+    'cartelera' | 'calendario' | 'publicar' | 'perfil' | 'admin' | 'resetpassword' | 'market'
   >('cartelera');
 
   const [visibleCount, setVisibleCount] = useState(8);
@@ -307,6 +308,9 @@ function App() {
 
       default:
         return null;
+      
+      case 'market':
+        return <Market />; 
     }
   };
 

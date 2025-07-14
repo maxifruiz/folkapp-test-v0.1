@@ -1,16 +1,15 @@
-// components/Layout.tsx
-
 import React, { useEffect, useRef, useState } from 'react';
-import { CalendarCheck, Plus, BookImage, User, Shield } from 'lucide-react';
+import { CalendarCheck, Plus, BookImage, User, Shield, Store } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import AdminAnnouncements from './AdminAnnouncements';
 import LegalModal from "./LegalModal";
 import UserSearchModal from './UserSearchModal';
+import Market from './Market';
 
 interface LayoutProps {
   children: React.ReactNode;
-  currentPage: 'cartelera' | 'calendario' | 'publicar' | 'perfil' | 'admin';
-  onPageChange: (page: 'cartelera' | 'calendario' | 'publicar' | 'perfil' | 'admin') => void;
+  currentPage: 'cartelera' | 'calendario' | 'publicar' | 'perfil' | 'admin'| 'market';
+  onPageChange: (page: 'cartelera' | 'calendario' | 'publicar' | 'perfil' | 'admin' | 'market') => void;
   user?: any;
 }
 
@@ -181,6 +180,7 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
     { id: 'calendario', label: 'Calendario', icon: CalendarCheck },
     { id: 'publicar', label: 'Publicar', icon: Plus },
     { id: 'perfil', label: 'Perfil', icon: User },
+    { id: 'market', label: 'Market', icon: Store },
   ];
 
   if (user?.role === 'admin') {
