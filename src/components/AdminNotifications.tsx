@@ -91,7 +91,6 @@ export default function AdminNotifications({ currentUser }: { currentUser: any }
             {unreadCount}
           </span>
         )}
-        <span className="ml-1" style={{ color: '#d6c4a1' }}>Admin</span>
       </button>
 
       {show && (
