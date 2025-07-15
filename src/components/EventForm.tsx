@@ -56,71 +56,106 @@ export function EventForm({ onSubmit, currentUser, initialData, isEditing = fals
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []);
-    if (selectedFiles.length > 1) {
-      setErrors(prev => ({ ...prev, files: 'Solo se permite un archivo' }));
-      return;
-    }
-    const validFiles = selectedFiles.filter(file => {
-      const isValidSize = file.size <= 20 * 1024 * 1024; // máximo 20MB
-      const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'];
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      const isValidExtension = ext && allowedExtensions.includes(ext);
-      const isValidMime = file.type.startsWith('image/');
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const selectedFiles = Array.from(e.target.files || []);
+  if (selectedFiles.length > 1) {
+    setErrors(prev => ({ ...prev, files: 'Solo se permite un archivo' }));
+    return;
+  }
 
-      return isValidSize && (isValidMime || isValidExtension);
-    });
-    if (validFiles.length === 1) {
+  const file = selectedFiles[0];
+  if (!file) {
+    setFiles([]);
+    setPreviewMultimedia([]);
+    setImageLoadMessage('');
+    setIsImageLoading(false);
+    return;
+  }
+
+  const isValidSize = file.size <= 8 * 1024 * 1024; // máximo 8MB (mejor para celular)
+  const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'];
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  const isValidExtension = ext && allowedExtensions.includes(ext);
+  const isValidMime = file.type.startsWith('image/');
+
+  if (!(isValidSize && (isValidMime || isValidExtension))) {
+    setErrors(prev => ({ ...prev, files: 'El archivo no es válido. Máx 8MB, formato imagen' }));
+    setFiles([]);
+    setIsImageLoading(false);
+    setImageLoadMessage('');
+    return;
+  }
+
+  try {
+    const objectUrl = URL.createObjectURL(file);
+
+    const img = new Image();
+    img.onload = () => {
       setIsImageLoading(true);
       setImageLoadMessage('Cargando archivo...');
-      setFiles(validFiles);
-      setPreviewMultimedia([]); // limpiar preview si se carga nueva
+      setFiles([file]);
+      setPreviewMultimedia([]); // limpiar anterior
       setErrors(prev => ({ ...prev, files: '' }));
 
-      // Simular carga con timeout para la UX (3 segundos)
       setTimeout(() => {
         setIsImageLoading(false);
-        setImageLoadMessage('Archivo cargado. Puedes publicar.');
-      }, 3000);
-    } else {
-      // Si no hay archivos válidos limpiar estados
+        setImageLoadMessage('Imagen lista para publicar.');
+      }, 4000);
+    };
+    img.onerror = () => {
+      setErrors(prev => ({ ...prev, files: 'No se pudo generar vista previa. Probá con otra imagen.' }));
       setFiles([]);
       setIsImageLoading(false);
       setImageLoadMessage('');
-    }
-  };
+    };
+    img.src = objectUrl;
+  } catch (err) {
+    console.error('Error generando preview:', err);
+    setErrors(prev => ({ ...prev, files: 'Error procesando la imagen. Probá con otra.' }));
+    setFiles([]);
+    setIsImageLoading(false);
+    setImageLoadMessage('');
+  }
+};
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    if (!formData.title.trim()) newErrors.title = 'El título es obligatorio';
-    if (!formData.description.trim()) newErrors.description = 'La descripción es obligatoria';
-    if (!formData.province) newErrors.province = 'La provincia es obligatoria';
-    if (!formData.city) newErrors.city = 'La ciudad es obligatoria';
-    if (!formData.address.trim()) newErrors.address = 'La dirección es obligatoria';
-    if (!formData.date) newErrors.date = 'La fecha es obligatoria';
-    if (!formData.time) newErrors.time = 'La hora es obligatoria';
-    if (!formData.isFree && (!formData.priceAnticipada || !formData.priceGeneral)) {
-      newErrors.priceAnticipada = 'Obligatorio';
-      newErrors.priceGeneral = 'Obligatorio';
-    }
-    if (!isEditing && files.length === 0 && previewMultimedia.length === 0) newErrors.files = 'Al menos una imagen es obligatoria';
+  const newErrors: Record<string, string> = {};
+  if (!formData.title.trim()) newErrors.title = 'El título es obligatorio';
+  if (!formData.description.trim()) newErrors.description = 'La descripción es obligatoria';
+  if (!formData.province) newErrors.province = 'La provincia es obligatoria';
+  if (!formData.city) newErrors.city = 'La ciudad es obligatoria';
+  if (!formData.address.trim()) newErrors.address = 'La dirección es obligatoria';
+  if (!formData.date) newErrors.date = 'La fecha es obligatoria';
+  if (!formData.time) newErrors.time = 'La hora es obligatoria';
+  if (!formData.isFree && (!formData.priceAnticipada || !formData.priceGeneral)) {
+    newErrors.priceAnticipada = 'Obligatorio';
+    newErrors.priceGeneral = 'Obligatorio';
+  }
 
-    const eventDateTime = new Date(`${formData.date}T${formData.time}`);
-    if (eventDateTime <= new Date()) newErrors.date = 'La fecha y hora deben ser futuras';
+  if (!isEditing && files.length === 0 && previewMultimedia.length === 0) {
+    newErrors.files = 'Al menos una imagen es obligatoria';
+  }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  const eventDateTime = new Date(`${formData.date}T${formData.time}`);
+  if (eventDateTime <= new Date()) {
+    newErrors.date = 'La fecha y hora deben ser futuras';
+  }
+
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
 
   const uploadNewImage = async () => {
-    const file = files[0];
-    const filePath = `${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from('event-files').upload(filePath, file);
-    if (error) throw new Error('Error al subir imagen');
-    const { data } = supabase.storage.from('event-files').getPublicUrl(filePath);
-    return [{ id: filePath, type: 'image', url: data.publicUrl }];
-  };
+  const file = files[0];
+  const filePath = `${Date.now()}-${file.name}`;
+  const { error } = await supabase.storage.from('event-files').upload(filePath, file);
+
+  if (error) throw new Error('Error al subir imagen');
+
+  const { data } = supabase.storage.from('event-files').getPublicUrl(filePath);
+  return [{ id: filePath, type: 'image', url: data.publicUrl }];
+};
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
