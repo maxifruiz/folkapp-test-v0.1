@@ -16,15 +16,14 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   const ensureProfileExists = async (userId: string, email: string) => {
-    console.log('[useAuth] Ejecutando ensureProfileExists para:', email);
-
     const { data: existingProfile, error: selectError } = await supabase
       .from('profiles')
       .select('id')
       .eq('id', userId)
       .single();
 
-    if (selectError) {
+    if (selectError && selectError.code !== 'PGRST116') {
+      // PGRST116 = no rows found, que acá es válido para crear perfil
       console.error('[useAuth] Error al buscar perfil:', selectError.message);
       return;
     }
@@ -42,7 +41,7 @@ export const useAuth = () => {
           birthdate = pending.birthdate || '';
           instagram = pending.instagram || '';
         } catch {
-          console.warn('[useAuth] No se pudo parsear pendingProfile');
+          // no pasa nada si no parsea
         }
       }
 
@@ -58,25 +57,25 @@ export const useAuth = () => {
 
       if (insertError) {
         console.error('[useAuth] Error al insertar perfil:', insertError.message);
-      } else {
-        console.log('[useAuth] Perfil creado correctamente');
       }
-
       localStorage.removeItem('pendingProfile');
-    } else {
-      console.log('[useAuth] Perfil ya existente, no se hace nada');
     }
   };
-
 
   const loadUserProfile = async (sessionUser: any) => {
     await ensureProfileExists(sessionUser.id, sessionUser.email);
 
-    const { data: profile } = await supabase
+    const { data: profile, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', sessionUser.id)
       .single();
+
+    if (error) {
+      console.error('[useAuth] Error al cargar perfil:', error.message);
+      setUser(null);
+      return;
+    }
 
     setUser({
       id: sessionUser.id,
@@ -91,37 +90,29 @@ export const useAuth = () => {
 
   useEffect(() => {
     const init = async () => {
-      console.log('[useAuth] Obteniendo sesión con supabase.auth.getSession()...');
       const { data } = await supabase.auth.getSession();
       const sessionUser = data?.session?.user;
 
       if (sessionUser) {
-        console.log('[useAuth] Sesión encontrada con getSession');
         await loadUserProfile(sessionUser);
         setLoading(false);
       } else {
-        console.log('[useAuth] Esperando evento SIGNED_IN...');
         const { data: listener } = supabase.auth.onAuthStateChange(
           async (event, session) => {
             if (event === 'SIGNED_IN' && session?.user) {
-              console.log('[useAuth] SIGNED_IN recibido');
               await loadUserProfile(session.user);
             }
             setLoading(false);
           }
         );
-
-        // fallback: si en 1.5 seg no llegó SIGNED_IN, liberar el loading igual
-        setTimeout(() => {
-          setLoading(false);
-        }, 1500);
+        // fallback para no quedar colgado en loading
+        setTimeout(() => setLoading(false), 1500);
 
         return () => {
           listener.subscription.unsubscribe();
         };
       }
     };
-
     init();
   }, []);
 
@@ -158,8 +149,8 @@ export const useAuth = () => {
       } else {
         alert(`Error al registrarse: ${error.message}`);
       }
-        console.error('Error al registrarse:', error.message);
-        return false;
+      console.error('Error al registrarse:', error.message);
+      return false;
     }
 
     localStorage.setItem(
@@ -170,33 +161,15 @@ export const useAuth = () => {
     return true;
   };
 
-    const logout = async () => {
-      const { data, error: getError } = await supabase.auth.getSession();
-
-      if (getError || !data?.session) {
-        console.warn('[useAuth] No hay sesión activa. Limpiando usuario.');
-        setUser(null);
-        return true;
-      }
-
-      try {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-          console.error('[useAuth] Error al cerrar sesión:', error.message);
-          return false;
-        }
-
-        setUser(null);
-        console.log('[useAuth] Sesión cerrada correctamente.');
-        return true;
-      } catch (err) {
-        console.error('[useAuth] Error inesperado al cerrar sesión:', err);
-        setUser(null);
-        return false;
-      }
-    };
-
-
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Error al cerrar sesión:', error.message);
+      return false;
+    }
+    setUser(null);
+    return true;
+  };
 
   return { user, loading, login, register, logout };
 };
