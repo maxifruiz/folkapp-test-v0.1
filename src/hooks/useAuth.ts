@@ -16,11 +16,18 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   const ensureProfileExists = async (userId: string, email: string) => {
-    const { data: existingProfile } = await supabase
+    console.log('[useAuth] Ejecutando ensureProfileExists para:', email);
+
+    const { data: existingProfile, error: selectError } = await supabase
       .from('profiles')
       .select('id')
       .eq('id', userId)
       .single();
+
+    if (selectError) {
+      console.error('[useAuth] Error al buscar perfil:', selectError.message);
+      return;
+    }
 
     if (!existingProfile) {
       const pendingRaw = localStorage.getItem('pendingProfile');
@@ -34,10 +41,12 @@ export const useAuth = () => {
           fullName = pending.fullName || fullName;
           birthdate = pending.birthdate || '';
           instagram = pending.instagram || '';
-        } catch {}
+        } catch {
+          console.warn('[useAuth] No se pudo parsear pendingProfile');
+        }
       }
 
-      await supabase.from('profiles').insert({
+      const { error: insertError } = await supabase.from('profiles').insert({
         id: userId,
         email,
         full_name: fullName,
@@ -47,17 +56,18 @@ export const useAuth = () => {
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}`,
       });
 
-      await supabase.from('admin_notifications').insert({
-        type: 'new_user',
-        content: `Se registró un nuevo usuario: ${fullName}`,
-        user_id: userId,
-        read: false,
-        created_at: new Date(),
-      });      
-      
+      if (insertError) {
+        console.error('[useAuth] Error al insertar perfil:', insertError.message);
+      } else {
+        console.log('[useAuth] Perfil creado correctamente');
+      }
+
       localStorage.removeItem('pendingProfile');
+    } else {
+      console.log('[useAuth] Perfil ya existente, no se hace nada');
     }
   };
+
 
   const loadUserProfile = async (sessionUser: any) => {
     await ensureProfileExists(sessionUser.id, sessionUser.email);
@@ -150,25 +160,43 @@ export const useAuth = () => {
       }
         console.error('Error al registrarse:', error.message);
         return false;
-      }
-
-      localStorage.setItem(
-        'pendingProfile',
-        JSON.stringify({ fullName, birthdate, instagram, email })
-      );
-
-      return true;
-    };
-
-  const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error al cerrar sesión:', error.message);
-      return false;
     }
-    setUser(null);
+
+    localStorage.setItem(
+      'pendingProfile',
+      JSON.stringify({ fullName, birthdate, instagram, email })
+    );
+
     return true;
   };
+
+    const logout = async () => {
+      const { data, error: getError } = await supabase.auth.getSession();
+
+      if (getError || !data?.session) {
+        console.warn('[useAuth] No hay sesión activa. Limpiando usuario.');
+        setUser(null);
+        return true;
+      }
+
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          console.error('[useAuth] Error al cerrar sesión:', error.message);
+          return false;
+        }
+
+        setUser(null);
+        console.log('[useAuth] Sesión cerrada correctamente.');
+        return true;
+      } catch (err) {
+        console.error('[useAuth] Error inesperado al cerrar sesión:', err);
+        setUser(null);
+        return false;
+      }
+    };
+
+
 
   return { user, loading, login, register, logout };
 };
