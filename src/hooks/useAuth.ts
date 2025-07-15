@@ -47,6 +47,14 @@ export const useAuth = () => {
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}`,
       });
 
+      await supabase.from('admin_notifications').insert({
+        type: 'new_user',
+        content: `Se registró un nuevo usuario: ${fullName}`,
+        user_id: userId,
+        read: false,
+        created_at: new Date(),
+      });      
+      
       localStorage.removeItem('pendingProfile');
     }
   };
@@ -133,18 +141,24 @@ export const useAuth = () => {
     instagram: string;
   }) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
+
     if (error || !data.user) {
-      console.error('Error al registrarse:', error.message);
-      return false;
-    }
+      if (error?.message.includes('email rate limit exceeded')) {
+        alert('¡Ups! Se hicieron muchos registros seguidos. Por favor, esperá unos minutos antes de intentar de nuevo.');
+      } else {
+        alert(`Error al registrarse: ${error.message}`);
+      }
+        console.error('Error al registrarse:', error.message);
+        return false;
+      }
 
-    localStorage.setItem(
-      'pendingProfile',
-      JSON.stringify({ fullName, birthdate, instagram, email })
-    );
+      localStorage.setItem(
+        'pendingProfile',
+        JSON.stringify({ fullName, birthdate, instagram, email })
+      );
 
-    return true;
-  };
+      return true;
+    };
 
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -158,6 +172,3 @@ export const useAuth = () => {
 
   return { user, loading, login, register, logout };
 };
-
-
-

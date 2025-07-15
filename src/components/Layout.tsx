@@ -5,6 +5,8 @@ import AdminAnnouncements from './AdminAnnouncements';
 import LegalModal from "./LegalModal";
 import UserSearchModal from './UserSearchModal';
 import Market from './Market';
+import AdminNotifications from './AdminNotifications';
+
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -571,6 +573,9 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
 
                  {/* 📢 Anuncios funcionales */}
                 <AdminAnnouncements userId={user?.id} />
+                {user?.email === 'maxif.ruiz@gmail.com' && (
+                  <AdminNotifications currentUser={user} />
+                )}
               </div>
             </div>
           </div>
