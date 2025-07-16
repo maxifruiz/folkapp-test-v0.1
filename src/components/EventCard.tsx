@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
-import {
-  Heart,
-  Calendar as CalendarIcon,
-  X,
-  DollarSign,
-} from 'lucide-react';
+import {Heart, Calendar as CalendarIcon, X, DollarSign,} from 'lucide-react';
 import { ReactionModal } from './ReactionModal';
 import { motion } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
+import UserProfileModal from './UserProfileModal';
+
 
 interface User {
   id: string;
@@ -70,6 +67,8 @@ export function EventCard({
   const [showFullImage, setShowFullImage] = useState(false);
   const [likeAnimation, setLikeAnimation] = useState(false);
   const [attendAnimation, setAttendAnimation] = useState(false);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const likes = event.reactions.likes?.filter(Boolean) ?? [];
   const attending = event.reactions.attending?.filter(Boolean) ?? [];
@@ -124,6 +123,14 @@ export function EventCard({
     onToggleAttending(event.id, currentUserId);
   };
 
+  const openUserProfile = (userId?: string) => {
+    if (!userId) return;
+    setSelectedUserId(userId);
+    setShowUserProfile(true);
+  };
+
+
+
   const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.2 });
 
   const cardClickHandler = () => {
@@ -151,7 +158,7 @@ export function EventCard({
           ease: 'easeOut',
           delay: index * 0.5,
         }}
-        className="relative bg-white rounded-3xl border-2 border-gray-300 shadow-[0_8px_30px_rgba(0,0,0,0.3),0_0_10px_rgba(255,255,255,0.3)_inset] overflow-hidden cursor-pointer transform transition-all duration-300 hover:scale-[1.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.4),0_0_15px_rgba(255,255,255,0.4)_inset]" 
+        className="relative bg-folkiCream rounded-3xl border-2 border-gray-300 shadow-[0_8px_30px_rgba(0,0,0,0.3),0_0_10px_rgba(255,255,255,0.3)_inset] overflow-hidden cursor-pointer transform transition-all duration-300 hover:scale-[1.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.4),0_0_15px_rgba(255,255,255,0.4)_inset]" 
         onClick={cardClickHandler}
       >
         {event.type && (
@@ -170,7 +177,7 @@ export function EventCard({
           />
         )}
 
-        <div className="p-1 space-y-0.5 pb-2 bg-white">
+        <div className="p-1 space-y-0.5 pb-2 bg-folkiCream">
           <h2 className="text-base font-semibold text-gray-800">
             {truncateTitle(event.title, 30)}
           </h2>
@@ -226,7 +233,7 @@ export function EventCard({
 
       {showDetail && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-70 flex items-center justify-center animate-fade-in">
-          <div className="bg-white max-w-2xl w-full mx-4 rounded-xl shadow-2xl relative animate-slide-up max-h-[90vh] overflow-y-auto">
+          <div className="bg-folkiCream max-w-2xl w-full mx-4 rounded-xl shadow-2xl relative animate-slide-up max-h-[90vh] overflow-y-auto">
             <button
               onClick={handleCloseDetail}
               className="absolute top-3 right-3 text-gray-700 hover:text-black text-3xl font-bold bg-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg"
@@ -320,16 +327,25 @@ export function EventCard({
                   </>
                 )}
               </div>
-              <div className="flex items-center">
-                <img
-                  src={organizerAvatar}
-                  alt={organizerName}
-                  className="w-10 h-10 rounded-full mr-3 object-cover"
+                <button
+                  onClick={() => openUserProfile(event.organizer?.id)}
+                  className="flex items-center space-x-3 w-full p-3 rounded-xl border border-folkiAmber shadow-md bg-folkiCream hover:bg-folkiAmber/70 transition"
+                >
+                  <img
+                    src={organizerAvatar}
+                    alt={organizerName}
+                    className="w-10 h-10 rounded-full object-cover border-2 border-folkiRed"
+                  />
+                  <span className="text-sm text-folkiRed font-semibold">
+                    Evento creado por <strong>{organizerName}</strong>
+                  </span>
+                </button>
+                {showUserProfile && selectedUserId && (
+                <UserProfileModal
+                  userId={selectedUserId}
+                  onClose={() => setShowUserProfile(false)}
                 />
-                <span className="text-sm text-gray-700">
-                  Evento creado por <strong>{organizerName}</strong>
-                </span>
-              </div>
+              )}
               <div className="flex items-center justify-center space-x-6 mt-6">
                 <div className="flex items-center space-x-2">
                   <button
