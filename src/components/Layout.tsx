@@ -6,6 +6,8 @@ import LegalModal from "./LegalModal";
 import UserSearchModal from './UserSearchModal';
 import Market from './Market';
 import AdminNotifications from './AdminNotifications';
+import UserProfileModal from './UserProfileModal'; 
+
 
 
 interface LayoutProps {
@@ -38,6 +40,9 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
   const notificationRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [showUserSearch, setShowUserSearch] = useState(false);
+
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
 
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -516,6 +521,13 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                           <div
                             key={n.id}
                             className={`noti-item ${n.leido ? 'read' : ''}`}
+                            onClick={() => {
+                              if (n.type === 'follow' && n.from_user_id) {
+                                setSelectedUserId(n.from_user_id);
+                                setIsUserProfileOpen(true);
+                              }
+                            }}
+                            style={{ cursor: n.type === 'follow' ? 'pointer' : 'default' }}
                           >
                             {n.from_user?.avatar ? (
                               <img src={n.from_user.avatar} alt={`${n.from_user.full_name} avatar`} className="noti-avatar" />
@@ -657,6 +669,15 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
           </div>
         </div>
       </footer>
+        {isUserProfileOpen && selectedUserId && (
+          <UserProfileModal
+            userId={selectedUserId}  // Pasale el id del usuario que abriste
+            onClose={() => setIsUserProfileOpen(false)}
+          />
+        )}
+
+
+
     </div> <LegalModal
               open={showTerms}   
               onClose={() => setShowTerms(false)}
