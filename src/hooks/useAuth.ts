@@ -153,10 +153,27 @@ export const useAuth = () => {
       return false;
     }
 
+    // Guardamos el perfil pendiente en localStorage
     localStorage.setItem(
       'pendingProfile',
       JSON.stringify({ fullName, birthdate, instagram, email })
     );
+
+    // Ahora que el usuario está registrado, forzamos el login para actualizar la sesión
+    const { data: sessionData, error: sessionError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (sessionError) {
+      console.error('Error al iniciar sesión después del registro:', sessionError.message);
+      return false;
+    }
+
+    // Cargar el perfil del usuario y actualizar la sesión
+    if (sessionData?.user) {
+      await loadUserProfile(sessionData.user);  // Esta es la función que ya tienes para cargar el perfil
+    }
 
     return true;
   };

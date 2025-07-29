@@ -35,9 +35,18 @@ export const Login = ({ onLogin, onRegister }: any) => {
       const success = await onRegister({ email, password, fullName, birthdate, instagram });
       if (success) {
         resetForm();
-        setTimeout(() => {
+        setTimeout(async () => {
           setShowConfirmation(true);
           setIsSubmitting(false);
+
+          // Verifica la sesión luego del registro exitoso
+          const { data, error } = await supabase.auth.getSession();
+          if (data?.session) {
+            // Si hay sesión activa, redirige al usuario
+            await onLogin(email, password);  // Aquí se ejecuta el login automáticamente
+          } else {
+            console.error("No se pudo obtener la sesión");
+          }
         }, 300);
       } else {
         setIsSubmitting(false);
@@ -138,9 +147,7 @@ export const Login = ({ onLogin, onRegister }: any) => {
                     <button
                       type="submit"
                       disabled={resetLoading}
-                      className={`bg-folkiRed text-white px-4 py-2 rounded-lg hover:bg-red-700 transition ${
-                        resetLoading ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
+                      className={`bg-folkiRed text-white px-4 py-2 rounded-lg hover:bg-red-700 transition ${resetLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {resetLoading ? 'Enviando...' : 'Enviar'}
                     </button>
@@ -195,7 +202,7 @@ export const Login = ({ onLogin, onRegister }: any) => {
                     />
                     <input
                       type="date"
-                      placeholder="Fecha de nacimiento "
+                      placeholder="Fecha de nacimiento"
                       value={birthdate}
                       onChange={(e) => setBirthdate(e.target.value)}
                       required
@@ -205,9 +212,7 @@ export const Login = ({ onLogin, onRegister }: any) => {
                       type="text"
                       placeholder="usuario @instagram (sin arroba)"
                       value={instagram.replace('@', '')}
-                      onChange={(e) => setInstagram(`@${e.target.value}`
-                        )
-                      }
+                      onChange={(e) => setInstagram(`@${e.target.value}`)}
                       required
                       className="w-full px-4 py-2 border border-folkiAmber rounded-lg focus:outline-none focus:ring-2 focus:ring-folkiAmber"
                     />
