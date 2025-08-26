@@ -13,6 +13,7 @@ export default {
       },
       boxShadow: {
         neon: '0 0 10px rgba(255, 0, 100, 0.5)',
+        'btn-shadow': '0 2px 8px rgba(0,0,0,0.15)', // sombra sutil botón
       },
       keyframes: {
         fadeUp: {
@@ -23,22 +24,23 @@ export default {
           '0%': { opacity: '0', transform: 'translateX(-8px)' },
           '100%': { opacity: '1', transform: 'translateX(0)' },
         },
+        pulseButton: {
+          '0%': { transform: 'scale(1)', boxShadow: '0 0 5px rgba(255, 220, 100, 0.6)' },
+          '50%': { transform: 'scale(1.1)', boxShadow: '0 0 15px rgba(255, 220, 100, 0.8)' },
+          '100%': { transform: 'scale(1)', boxShadow: '0 0 5px rgba(255, 220, 100, 0.6)' },
+        },
       },
       animation: {
         'fade-up': 'fadeUp 0.7s ease-out forwards',
         'fade-left': 'fadeLeft 0.7s ease-out forwards',
+        'pulse-button': 'pulseButton 2s ease-in-out infinite',
       },
-      // Nuevas clases personalizadas
       spacing: {
-        'btn-px': '0.75rem',  // para px padding más claro si querés
+        'btn-px': '0.75rem', // para px padding más claro si quieres
       },
       borderRadius: {
         'btn-rounded': '9999px', // botón full rounded
       },
-      boxShadow: {
-        'btn-shadow': '0 2px 8px rgba(0,0,0,0.15)', // sombra sutil botón
-      },
-      // Puedes usar plugin para componentes, o en CSS con @apply (recomendado para combos)
     },
   },
   plugins: [

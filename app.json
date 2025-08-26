@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Folki App",
+    "slug": "folk",  // Aquí añades el slug
+    "extra": {
+      "eas": {
+        "projectId": "af214b5b-fe0b-430f-a8d1-7d66dffc157c"
+      }
+    }
+  }
+}
+
