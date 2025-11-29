@@ -13,7 +13,7 @@ export default {
       },
       boxShadow: {
         neon: '0 0 10px rgba(255, 0, 100, 0.5)',
-        'btn-shadow': '0 2px 8px rgba(0,0,0,0.15)', // sombra sutil botón
+        'btn-shadow': '0 2px 8px rgba(0,0,0,0.15)', // 
       },
       keyframes: {
         fadeUp: {
@@ -36,7 +36,7 @@ export default {
         'pulse-button': 'pulseButton 2s ease-in-out infinite',
       },
       spacing: {
-        'btn-px': '0.75rem', // para px padding más claro si quieres
+        'btn-px': '0.75rem', // 
       },
       borderRadius: {
         'btn-rounded': '9999px', // botón full rounded
@@ -45,6 +45,6 @@ export default {
   },
   plugins: [
     require('@tailwindcss/line-clamp'),
-    require('tailwind-scrollbar'), // 👉 agregado para scroll estético
+    require('tailwind-scrollbar'), //  agregado para scroll estético
   ],
 };
