@@ -1,0 +1,6 @@
+{
+	"appId": "com.folkiapp.app",
+	"appName": "FolkiApp",
+	"webDir": "dist",
+	"packageClassList": []
+}

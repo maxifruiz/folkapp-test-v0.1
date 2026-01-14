@@ -46,7 +46,7 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
 
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
-  const [isPrecosquinOpen, setIsPrecosquinOpen] = useState(false);
+  
 
 
   // Popup arriba notificaciones nuevas
@@ -612,20 +612,6 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
                   <span className="hidden sm:block text-sm">{label}</span>
                 </button>
               ))}
-              <button
-                className="flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-lg transition-all duration-300 font-medium text-folkiRed hover:bg-folkiAmber/30 bg-transparent"
-                onClick={() => setIsPrecosquinOpen(true)}
-              >
-                {/* Contenedor del icono con pulso */}
-                <div className="rounded-full p-1 animate-pulse-button shadow-neon flex items-center justify-center">
-                  <img
-                    src="/precosquin.png"
-                    alt="Precosquin"
-                    className="h-8 w-8 flex-shrink-0"
-                  />
-                </div>
-                <span className="hidden sm:block text-sm">Precosquin</span>
-              </button>
             </div>
           </div>
         </nav>
@@ -706,10 +692,6 @@ export function Layout({ children, currentPage, onPageChange, user }: LayoutProp
             {showUserSearch && (
               <UserSearchModal onClose={() => setShowUserSearch(false)} />
             )}
-            <PrecosquinModal
-              isOpen={isPrecosquinOpen}
-              onClose={() => setIsPrecosquinOpen(false)}
-            />
     </div>
 );
 }
